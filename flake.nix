@@ -21,8 +21,8 @@
           src = pkgs.fetchFromGitHub {
             owner = "quantumvoid0";
             repo = "better-control";
-            rev = "f13a49e2126db44476938fbb633047a5d360b79d";
-            sha256 = "sha256-9z3fNWKO+VnXWG65FytniipR0iUVH5PNZ/2m6sgQ2Y8=";
+            rev = "8a0fcc5015edfa0b8fd7011d4148034b8b83848c";
+            sha256 = "sha256-CinfUN0HpP3ymREHZvCbt2vHz6Fsm+ZaXLpdQ2DpZyg=";
           };
 
           buildInputs = with pkgs; [
