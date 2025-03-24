@@ -58,13 +58,6 @@
             python3Packages.wrapPython
             makeWrapper
           ];
-
-          pythonPath = with pkgs.python3Packages; [
-            pygobject3
-            dbus-python
-            pydbus
-            psutil
-          ];
           
           dontBuild = true;
           
