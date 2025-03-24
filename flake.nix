@@ -16,7 +16,7 @@
 
         packages.better-control = pkgs.stdenv.mkDerivation {
           pname = "better-control";
-          version = "5.0"; # Update if necessary
+          version = "0-unstable-2025-03-24";
 
           src = pkgs.fetchFromGitHub {
             owner = "quantumvoid0";
