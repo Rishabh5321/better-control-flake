@@ -50,9 +50,9 @@
 
           dontBuild = true;
 
-          prePatch = ''
-            substituteInPlace Makefile --replace '/usr/bin' '$(PREFIX)/bin' --replace '/usr/share' '$(PREFIX)/share' || true
-            substituteInPlace src/control.desktop --replace '/usr/bin/control' 'control' || true
+          postPatch = ''
+            substituteInPlace src/control.desktop \
+              --replace-fail '/usr/bin/control' 'control'
           '';
 
           installPhase = ''
