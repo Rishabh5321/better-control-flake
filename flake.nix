@@ -11,20 +11,21 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
       in
-      {
+      rec {
+        packages.default = packages.better-control;
+
         packages.better-control = pkgs.stdenv.mkDerivation {
           pname = "better-control";
-          version = "5.0"; # Update if necessary
+          version = "5.0";
 
           src = pkgs.fetchFromGitHub {
             owner = "quantumvoid0";
             repo = "better-control";
-            rev = "main";
+            rev = "ff270596815a7da7d876dec7dac11ee2ce566e33";
             sha256 = "sha256-MJ+YfC+NfCPojb3HT2PmWgr0BWpQGkXLpVHkIP8plJY=";
           };
 
           buildInputs = with pkgs; [
-            # Dependencies
             gtk3
             networkmanager
             bluez
@@ -48,32 +49,25 @@
 
           dontBuild = true;
 
-          prePatch = ''
-            substituteInPlace Makefile --replace '/usr/bin' '$(PREFIX)/bin' --replace '/usr/share' '$(PREFIX)/share' || true
-            substituteInPlace src/control.desktop --replace '/usr/bin/control' 'control' || true
+          postPatch = ''
+            substituteInPlace src/control.desktop \
+              --replace-fail '/usr/bin/control' 'control'
           '';
 
           installPhase = ''
             mkdir -p $out/bin $out/share/better-control $out/share/applications
-            
-            if [ -f Makefile ] && grep -q install Makefile; then
-              make install PREFIX=$out
-            else
-              cp -r src $out/share/better-control/
-              echo "#!/bin/sh" > $out/bin/control
-              echo "exec ${pkgs.python3}/bin/python3 $out/share/better-control/src/control.py \"$@\"" >> $out/bin/control
-              chmod +x $out/bin/control
-            fi
-            
-            install -Dm644 src/control.desktop $out/share/applications/control.desktop || true
+
+            make install PREFIX=$out
+
+            install -Dm644 src/control.desktop $out/share/applications/control.desktop
           '';
 
           postFixup = ''
             wrapPythonPrograms
-            wrapProgram $out/bin/control --prefix PATH : ${pkgs.lib.makeBinPath [
-              pkgs.brightnessctl pkgs.networkmanager pkgs.bluez pkgs.pipewire
-              pkgs.power-profiles-daemon pkgs.gammastep
-            ]} \
+            wrapProgram $out/bin/control --prefix PATH : ${pkgs.lib.makeBinPath (with pkgs; [
+              brightnessctl networkmanager bluez pipewire
+              power-profiles-daemon gammastep
+            ])} \
             --set PYTHONPATH "$PYTHONPATH:${pkgs.python3Packages.pygobject3}/${pkgs.python3.sitePackages}"
           '';
 
