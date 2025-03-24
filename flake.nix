@@ -20,7 +20,7 @@
             owner = "quantumvoid0";
             repo = "better-control";
             rev = "main"; 
-            sha256 = "sha256-jnLOU4CovoKok8WwjH+ywhRTO74Bm4EM9841QvzHNOU=";
+            sha256 = "sha256-q0M7oEiCW0heJsv7nzoekqJFsBEiHbWkg1wTwdlN2sA=";
           };
           
           buildInputs = with pkgs; [
