@@ -57,17 +57,10 @@
 
           installPhase = ''
             mkdir -p $out/bin $out/share/better-control $out/share/applications
-            
-            if [ -f Makefile ] && grep -q install Makefile; then
-              make install PREFIX=$out
-            else
-              cp -r src $out/share/better-control/
-              echo "#!/bin/sh" > $out/bin/control
-              echo "exec ${pkgs.python3}/bin/python3 $out/share/better-control/src/control.py \"$@\"" >> $out/bin/control
-              chmod +x $out/bin/control
-            fi
-            
-            install -Dm644 src/control.desktop $out/share/applications/control.desktop || true
+
+            make install PREFIX=$out
+
+            install -Dm644 src/control.desktop $out/share/applications/control.desktop
           '';
 
           postFixup = ''
