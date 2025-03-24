@@ -21,7 +21,7 @@
           src = pkgs.fetchFromGitHub {
             owner = "quantumvoid0";
             repo = "better-control";
-            rev = "main";
+            rev = "ff270596815a7da7d876dec7dac11ee2ce566e33";
             sha256 = "sha256-MJ+YfC+NfCPojb3HT2PmWgr0BWpQGkXLpVHkIP8plJY=";
           };
 
