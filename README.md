@@ -43,9 +43,10 @@ better-control.url = "github:rishabh5321/better-control-flake";
 ```
 2. Import the Better-Control module in your NixOS configuration in home.nix:
 ```nix
-{ inputs, ... }: {
-   imports = [
-      inputs.better-control.packages.${pkgs.system}.better-control
+{ inputs, pkgs ... }: {
+   environment.systemPackages =
+      with pkgs; [
+         inputs.better-control.packages.${pkgs.system}.better-control
    ];
 }
 ```
