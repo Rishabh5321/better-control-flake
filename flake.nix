@@ -11,7 +11,9 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
       in
-      {
+      rec {
+        packages.default = packages.better-control;
+
         packages.better-control = pkgs.stdenv.mkDerivation {
           pname = "better-control";
           version = "5.0"; # Update if necessary
