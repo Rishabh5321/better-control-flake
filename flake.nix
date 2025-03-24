@@ -19,29 +19,40 @@
           src = pkgs.fetchFromGitHub {
             owner = "quantumvoid0";
             repo = "better-control";
-            rev = "main"; 
+            rev = "main";
             sha256 = "sha256-q0M7oEiCW0heJsv7nzoekqJFsBEiHbWkg1wTwdlN2sA=";
           };
-          
+
           buildInputs = with pkgs; [
             # Dependencies
-            gtk3 networkmanager bluez pipewire brightnessctl
-            python3 python3Packages.pygobject3 python3Packages.dbus-python
-            python3Packages.pydbus python3Packages.psutil
-            power-profiles-daemon gammastep
+            gtk3
+            networkmanager
+            bluez
+            pipewire
+            brightnessctl
+            python3
+            python3Packages.pygobject3
+            python3Packages.dbus-python
+            python3Packages.pydbus
+            python3Packages.psutil
+            power-profiles-daemon
+            gammastep
           ];
-          
+
           nativeBuildInputs = with pkgs; [
-            pkg-config wrapGAppsHook python3Packages.wrapPython makeWrapper
+            pkg-config
+            wrapGAppsHook
+            python3Packages.wrapPython
+            makeWrapper
           ];
-          
+
           dontBuild = true;
-          
+
           prePatch = ''
             substituteInPlace Makefile --replace '/usr/bin' '$(PREFIX)/bin' --replace '/usr/share' '$(PREFIX)/share' || true
             substituteInPlace src/control.desktop --replace '/usr/bin/control' 'control' || true
           '';
-          
+
           installPhase = ''
             mkdir -p $out/bin $out/share/better-control $out/share/applications
             
@@ -65,7 +76,7 @@
             ]} \
             --set PYTHONPATH "$PYTHONPATH:${pkgs.python3Packages.pygobject3}/${pkgs.python3.sitePackages}"
           '';
-          
+
           meta = with pkgs.lib; {
             description = "A system control panel utility";
             homepage = "https://github.com/quantumvoid0/better-control";
