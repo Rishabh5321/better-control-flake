@@ -25,12 +25,6 @@ This repository provides a Nix flake for Better-control, A GTK-themed control pa
 
 ## Installation
 
-### Using the Flake Directly
-You can run better-control directly using the flake without integrating it into your NixOS configuration:
-
-```bash
-nix run github:rishabh5321/better-control-flake#default
-```
 ### Using the Flake Profiles
 
 You can install better-control directly using the flake without integrating it into your NixOS configuration:
