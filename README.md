@@ -29,7 +29,7 @@ This repository provides a Nix flake for Better-control, A GTK-themed control pa
 
 You can install better-control directly using the flake without integrating it into your NixOS configuration:
 ```bash
-nix profile install github:rishabh5321/better-control-flake#default
+nix profile install github:rishabh5321/better-control-flake#better-control
 ```
 You will the app in the app launcher menu just simply enter to launch.
 
