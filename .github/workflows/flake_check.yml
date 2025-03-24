@@ -47,7 +47,7 @@ jobs:
         id: flake_install
         run: |
           set +e  # Don't exit immediately on error
-          nix profile install . 2>&1 | tee flake_install.log
+          nix profile install .#better-control 2>&1 | tee flake_install.log
           if grep -E "(warning:|error:)" flake_install.log > flake_install_filtered.log; then
             echo "FLAKE_INSTALL_STATUS=failed" >> $GITHUB_ENV
             echo "WORKFLOW_SHOULD_FAIL=true" >> $GITHUB_ENV
