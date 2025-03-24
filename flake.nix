@@ -80,7 +80,7 @@
           meta = with pkgs.lib; {
             description = "A system control panel utility";
             homepage = "https://github.com/quantumvoid0/better-control";
-            license = licenses.mit; # Update if necessary
+            license = pkgs.lib.licenses.gpl3Only;license = pkgs.lib.licenses.gpl3Only;
             platforms = platforms.linux ++ platforms.darwin;
             maintainers = [ ];
           };

@@ -62,24 +62,6 @@ nh os boot --hostname <your-hostname> <your-flake-dir>
 control
 ```
 
-### Contributing
-
-Contributions to this flake are welcome! Here’s how you can contribute:
-1. Fork the repository.
-2. Create a new branch for your changes:
-```bash
-git checkout -b my-feature
-```
-3. Commit your changes:
-```bash
-git commit -m "Add my feature"
-```
-4. Push the branch to your fork:
-```bash
-git push origin my-feature
-```
-5. Open a pull request on GitHub.
-
 ### License
 This flake is licensed under the MIT License. Better-control itself is licensed under the GPL-3.0 License.
 
