@@ -45,7 +45,7 @@ better-control.url = "github:rishabh5321/better-control-flake";
 ```nix
 { inputs, ... }: {
    imports = [
-      inputs.better-control.packages.${pkgs.system}.default
+      inputs.better-control.packages.${pkgs.system}.better-control
    ];
 }
 ```
