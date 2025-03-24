@@ -65,10 +65,8 @@
             psutil
           ];
           
-          # Skip the build phase as this appears to be a Python script
           dontBuild = true;
           
-          # Patch the Makefile to respect PREFIX
           prePatch = ''
             if [ -f Makefile ]; then
               substituteInPlace Makefile \
@@ -83,7 +81,6 @@
             fi
           '';
           
-          # Create necessary directories and install files manually if needed
           installPhase = ''
             # Create target directories
             mkdir -p $out/bin
@@ -108,15 +105,6 @@ EOF
             # Install the desktop file from src directory
             if [ -f src/control.desktop ]; then
               install -Dm644 src/control.desktop $out/share/applications/control.desktop
-            fi
-            
-            # Install icons if they exist
-            if [ -d "icons" ]; then
-              mkdir -p $out/share/icons/hicolor/128x128/apps/
-              find icons -name "*.png" -type f -exec install -Dm644 {} $out/share/icons/hicolor/128x128/apps/control.png \; -quit
-              
-              mkdir -p $out/share/icons/hicolor/scalable/apps/
-              find icons -name "*.svg" -type f -exec install -Dm644 {} $out/share/icons/hicolor/scalable/apps/control.svg \; -quit
             fi
           '';
 
