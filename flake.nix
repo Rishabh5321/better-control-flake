@@ -66,7 +66,7 @@
             wrapPythonPrograms
             wrapProgram $out/bin/control --prefix PATH : ${pkgs.lib.makeBinPath (with pkgs; [
               brightnessctl networkmanager bluez pipewire
-              power-profiles-daemon gammastep libpulseaudio
+              power-profiles-daemon gammastep libpulseaudio pulseaudio
             ])} \
             --set PYTHONPATH "$PYTHONPATH:${pkgs.python3Packages.pygobject3}/${pkgs.python3.sitePackages}"
           '';
