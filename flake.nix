@@ -16,13 +16,13 @@
 
         packages.better-control = pkgs.stdenv.mkDerivation {
           pname = "better-control";
-          version = "5.2";
+          version = "5.0";
 
           src = pkgs.fetchFromGitHub {
             owner = "quantumvoid0";
             repo = "better-control";
-            rev = "d4de7ca08cf88826654892728f5d1324020fc48a";
-            sha256 = "sha256-Kl5bU2fjnwQWlE3NxkTsn3Q0oIPbRnfmBprVDbrcIME=";
+            rev = "8a0fcc5015edfa0b8fd7011d4148034b8b83848c";
+            sha256 = "sha256-CinfUN0HpP3ymREHZvCbt2vHz6Fsm+ZaXLpdQ2DpZyg=";
           };
 
           buildInputs = with pkgs; [
