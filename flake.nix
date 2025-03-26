@@ -16,13 +16,11 @@
 
         packages.better-control = pkgs.stdenv.mkDerivation {
           pname = "better-control";
-          version = "5.0";
+          version = "5.2";
 
-          src = pkgs.fetchFromGitHub {
-            owner = "quantumvoid0";
-            repo = "better-control";
-            rev = "8a0fcc5015edfa0b8fd7011d4148034b8b83848c";
-            sha256 = "sha256-CinfUN0HpP3ymREHZvCbt2vHz6Fsm+ZaXLpdQ2DpZyg=";
+          src = pkgs.fetchzip {
+            url = "https://github.com/quantumvoid0/better-control/archive/refs/tags/5.2.zip";
+            sha256 = "sha256-Kl5bU2fjnwQWlE3NxkTsn3Q0oIPbRnfmBprVDbrcIME=";
           };
 
           buildInputs = with pkgs; [
@@ -49,6 +47,8 @@
 
           dontBuild = true;
 
+          setSourceRoot = "sourceRoot=$(find $PWD -type d -mindepth 1 -maxdepth 1 | head -1)";
+
           postPatch = ''
             substituteInPlace src/control.desktop \
               --replace-fail '/usr/bin/control' 'control'
@@ -57,18 +57,21 @@
           installPhase = ''
             mkdir -p $out/bin $out/share/better-control $out/share/applications
 
+            # Install both binaries initially
             make install PREFIX=$out
 
-            install -Dm644 src/control.desktop $out/share/applications/control.desktop
+            # Remove the better-control binary after installation
+            rm -f $out/bin/better-control
+            rm -f $out/bin/.better-control-wrapped
           '';
 
           postFixup = ''
             wrapPythonPrograms
             wrapProgram $out/bin/control --prefix PATH : ${pkgs.lib.makeBinPath (with pkgs; [
-              brightnessctl networkmanager bluez pipewire
+              python3 brightnessctl networkmanager bluez pipewire
               power-profiles-daemon gammastep libpulseaudio pulseaudio
             ])} \
-            --set PYTHONPATH "$PYTHONPATH:${pkgs.python3Packages.pygobject3}/${pkgs.python3.sitePackages}"
+            --set PYTHONPATH "$PYTHONPATH:${pkgs.python3Packages.pygobject3}/${pkgs.python3.sitePackages}" 
           '';
 
           meta = with pkgs.lib; {
