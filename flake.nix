@@ -20,7 +20,7 @@
 
           src = pkgs.fetchzip {
             url = "https://github.com/quantumvoid0/better-control/archive/refs/tags/5.2.zip";
-            sha256 = "sha256-Kl5bU2fjnwQWlE3NxkTsn3Q0oIPbRnfmBprVDbrcIME="; # Temporary placeholder
+            sha256 = "sha256-Kl5bU2fjnwQWlE3NxkTsn3Q0oIPbRnfmBprVDbrcIME=";
           };
 
           buildInputs = with pkgs; [
@@ -57,9 +57,12 @@
           installPhase = ''
             mkdir -p $out/bin $out/share/better-control $out/share/applications
 
+            # Install both binaries initially
             make install PREFIX=$out
 
-            install -Dm644 src/control.desktop $out/share/applications/control.desktop
+            # Remove the better-control binary after installation
+            rm -f $out/bin/better-control
+            rm -f $out/bin/.better-control-wrapped
           '';
 
           postFixup = ''
