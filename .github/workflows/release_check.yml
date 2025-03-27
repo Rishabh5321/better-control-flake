@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Nix
-        uses: cachix/install-nix-action@v31
+        uses: cachix/install-nix-action@v22
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
@@ -27,7 +27,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4
-          nix-env -i -f https://github.com/seppeljordan/nix-prefetch-github/archive/master.tar.gz
+          sudo apt-get install -y jq
 
       - name: Get current version info
         id: current
@@ -64,12 +64,15 @@ jobs:
             echo "update_available=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Prefetch new version
+      - name: Get SHA256 hash
         if: steps.compare.outputs.update_available == 'true'
         id: prefetch
         run: |
-          nix-prefetch-github --nix --rev refs/tags/${{ steps.latest.outputs.latest_version }} quantumvoid0 better-control > prefetch.json
-          SHA256=$(jq -r '.sha256' prefetch.json)
+          VERSION="${{ steps.latest.outputs.latest_version }}"
+          URL="https://github.com/quantumvoid0/better-control/archive/refs/tags/${VERSION}.zip"
+          
+          # Download the file and calculate SHA256
+          SHA256=$(curl -sL "$URL" | sha256sum | cut -d' ' -f1)
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
 
       - name: Create update branch
