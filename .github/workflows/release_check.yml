@@ -29,8 +29,8 @@ jobs:
 
       - name: Commit changes
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
+          git config --global user.name "github[bot]"
+          git config --global user.email "noreply@github.com"
           git checkout -b update-better-control-$LATEST_VERSION
           git add flake.nix
           git commit -m "Update better-control to $LATEST_VERSION"
