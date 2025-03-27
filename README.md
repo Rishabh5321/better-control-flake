@@ -7,7 +7,7 @@
 
 This repository provides a Nix flake for Better-control, A GTK-themed control panel for Linux 🐧
 
-NOTE :- Please Enable `services.power-profiles-daemon.enable = true;` if you are having power profile changeing issues.
+NOTE :- Please Enable `services.power-profiles-daemon.enable = true;` if you are having power profile changing issues.
 
 ## Table of Contents
 1. [Features](#features)
