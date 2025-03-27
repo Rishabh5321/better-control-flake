@@ -15,19 +15,40 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v27
 
-      - name: Get latest version
-        id: get_version
+      - name: Install GitHub CLI
         run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Get current and latest versions
+        id: versions
+        run: |
+          # Get current version from flake.nix
+          CURRENT_VERSION=$(grep -oP 'version = "\K[0-9.]+(?=";)' flake.nix)
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+          
+          # Get latest version from GitHub
           LATEST_VERSION=$(curl -s https://api.github.com/repos/quantumvoid0/better-control/releases/latest | jq -r .tag_name)
           echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
+          
+          # Compare versions
+          if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
+            echo "No update available (current: $CURRENT_VERSION, latest: $LATEST_VERSION)"
+            echo "UPDATE_NEEDED=false" >> $GITHUB_ENV
+          else
+            echo "Update available (current: $CURRENT_VERSION, latest: $LATEST_VERSION)"
+            echo "UPDATE_NEEDED=true" >> $GITHUB_ENV
+          fi
 
       - name: Update version and sha256
+        if: env.UPDATE_NEEDED == 'true'
         run: |
           sed -i "s/version = \"[0-9.]*\";/version = \"$LATEST_VERSION\";/" flake.nix
           NEW_SHA256=$(nix-prefetch-url --unpack "https://github.com/quantumvoid0/better-control/archive/refs/tags/$LATEST_VERSION.zip")
           sed -i "s|sha256 = \"sha256-[^\"]*\";|sha256 = \"$NEW_SHA256\";|" flake.nix
 
       - name: Commit changes
+        if: env.UPDATE_NEEDED == 'true'
         run: |
           git config --global user.name "github[bot]"
           git config --global user.email "noreply@github.com"
@@ -37,6 +58,7 @@ jobs:
           git push origin update-better-control-$LATEST_VERSION
 
       - name: Create Pull Request
+        if: env.UPDATE_NEEDED == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -45,3 +67,8 @@ jobs:
             --body "This updates better-control to version $LATEST_VERSION." \
             --head update-better-control-$LATEST_VERSION \
             --base main
+
+      - name: Skip update
+        if: env.UPDATE_NEEDED == 'false'
+        run: |
+          echo "No update needed - current version ($CURRENT_VERSION) is up-to-date"
