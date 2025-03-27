@@ -103,7 +103,7 @@
         };
 
         # Add NixOS module to enable power-profiles-daemon service
-        nixosModules.default = { config, lib, pkgs, ... }: {
+        nixosModules.default = { config, lib, ... }: {
           config = lib.mkIf (config.services.power-profiles-daemon.enable or false) {
             services.power-profiles-daemon.enable = true;
             services.dbus.packages = [ self.packages.${system}.better-control ];
