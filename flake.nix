@@ -8,7 +8,7 @@
 
   outputs = { self, nixpkgs, flake-utils, ... }:
     let
-      version = "5.3";  # Define the version here
+      version = "5.3"; # Define the version here
     in
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
