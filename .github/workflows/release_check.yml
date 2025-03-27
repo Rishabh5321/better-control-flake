@@ -98,7 +98,7 @@ jobs:
           sed -i "s/version = \".*\"/version = \"${VERSION}\"/" flake.nix
           
           # Update URL
-          sed -i "s|url = \".*/better-control/archive/refs/tags/.*\"|url = \"https://github.com/quantumvoid0/better-control/archive/refs/tags/${VERSION}.zip\"|" flake.nix
+          # sed -i "s|url = \".*/better-control/archive/refs/tags/.*\"|url = \"https://github.com/quantumvoid0/better-control/archive/refs/tags/${VERSION}.zip\"|" flake.nix
           
           # Update SHA256
           sed -i "s/sha256 = \".*\"/sha256 = \"${SHA256}\"/" flake.nix
