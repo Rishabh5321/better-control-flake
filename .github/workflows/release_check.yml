@@ -73,8 +73,8 @@ jobs:
       - name: Create or reset update branch
         if: steps.compare.outputs.update_available == 'true'
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          git config --global user.name "github[bot]"
+          git config --global user.email "noreply@github.com"
           BRANCH_NAME="update/better-control-${{ steps.latest.outputs.latest_version }}"
           
           # Check if branch exists remotely
