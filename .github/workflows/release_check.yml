@@ -11,8 +11,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Nix
+        uses: cachix/install-nix-action@v22
         with:
-          fetch-depth: 0
+          extra_nix_config: |
+            experimental-features = nix-command flakes
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -22,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 nix-prefetch-github
+          pip install requests beautifulsoup4
 
       - name: Get current version info
         id: current
@@ -63,7 +67,7 @@ jobs:
         if: steps.compare.outputs.update_available == 'true'
         id: prefetch
         run: |
-          nix-prefetch-url --unpack "https://github.com/quantumvoid0/better-control/archive/refs/tags/${{ steps.latest.outputs.latest_version }}.zip" > sha256.txt
+          nix-shell -p nix-prefetch --run "nix-prefetch-url --unpack https://github.com/quantumvoid0/better-control/archive/refs/tags/${{ steps.latest.outputs.latest_version }}.zip" > sha256.txt
           SHA256=$(cat sha256.txt)
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
 
@@ -100,7 +104,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}-update/better-control-${{ steps.latest.outputs.latest_version }}
+          branch: update/better-control-${{ steps.latest.outputs.latest_version }}
 
       - name: Create Pull Request
         if: steps.compare.outputs.update_available == 'true'
@@ -109,6 +113,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           title: "Update better-control to ${{ steps.latest.outputs.latest_version }}"
           body: "Automated update to version ${{ steps.latest.outputs.latest_version }}"
-          branch: "update/better-control-${{ steps.latest.outputs.latest_version }}"
+          branch: update/better-control-${{ steps.latest.outputs.latest_version }}
           base: main
           draft: false
