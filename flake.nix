@@ -39,6 +39,8 @@
             python3Packages.psutil
             power-profiles-daemon
             gammastep
+            libpulseaudio
+            pulseaudio
           ];
 
           nativeBuildInputs = with pkgs; [
@@ -70,19 +72,42 @@
 
           postFixup = ''
             wrapPythonPrograms
-            wrapProgram $out/bin/control --prefix PATH : ${pkgs.lib.makeBinPath (with pkgs; [
-              python3 brightnessctl networkmanager bluez pipewire
-              power-profiles-daemon gammastep libpulseaudio pulseaudio
-            ])} \
-            --set PYTHONPATH "$PYTHONPATH:${pkgs.python3Packages.pygobject3}/${pkgs.python3.sitePackages}" 
+            wrapProgram $out/bin/control \
+              --prefix PATH : ${pkgs.lib.makeBinPath (with pkgs; [
+                python3 
+                brightnessctl 
+                networkmanager 
+                bluez 
+                pipewire
+                power-profiles-daemon 
+                gammastep 
+                libpulseaudio 
+                pulseaudio
+              ])} \
+              --prefix GI_TYPELIB_PATH : "${pkgs.lib.makeSearchPath "lib/girepository-1.0" [
+                pkgs.gtk3 
+                pkgs.gobject-introspection 
+                pkgs.pango
+              ]}" \
+              --set PYTHONPATH "$PYTHONPATH:${pkgs.python3Packages.pygobject3}/${pkgs.python3.sitePackages}" \
+              --set DBUS_SYSTEM_BUS_ADDRESS "unix:path=/run/dbus/system_bus_socket"
           '';
 
           meta = with pkgs.lib; {
             description = "A system control panel utility";
             homepage = "https://github.com/quantumvoid0/better-control";
-            license = pkgs.lib.licenses.gpl3Only;
-            platforms = platforms.linux ++ platforms.darwin;
+            license = licenses.gpl3Only;
+            platforms = platforms.linux;
             maintainers = [ ];
+          };
+        };
+
+        # Add NixOS module to enable power-profiles-daemon service
+        nixosModules.default = { config, lib, pkgs, ... }: {
+          config = lib.mkIf (config.services.power-profiles-daemon.enable or false) {
+            services.power-profiles-daemon.enable = true;
+            services.dbus.packages = [ self.packages.${system}.better-control ];
+            environment.systemPackages = [ self.packages.${system}.better-control ];
           };
         };
 
