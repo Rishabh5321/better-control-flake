@@ -12,7 +12,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Important to get full git history
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -70,21 +70,22 @@ jobs:
           SHA256=$(curl -sL "$URL" | sha256sum | cut -d' ' -f1)
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
 
-      - name: Create or reset update branch
+      - name: Setup branch
         if: steps.compare.outputs.update_available == 'true'
         run: |
-          git config --global user.name "github[bot]"
-          git config --global user.email "noreply@github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           BRANCH_NAME="update/better-control-${{ steps.latest.outputs.latest_version }}"
           
-          # Check if branch exists remotely
-          if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
-            # Branch exists, reset it
-            git fetch origin "$BRANCH_NAME"
+          # Check if branch exists locally or remotely
+          if git show-ref --quiet refs/heads/"$BRANCH_NAME"; then
             git checkout "$BRANCH_NAME"
             git reset --hard origin/main
+          elif git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
+            git fetch origin "$BRANCH_NAME"
+            git checkout -b "$BRANCH_NAME" origin/"$BRANCH_NAME"
+            git merge --ff-only origin/main
           else
-            # Branch doesn't exist, create new
             git checkout -b "$BRANCH_NAME"
           fi
 
@@ -94,28 +95,27 @@ jobs:
           VERSION="${{ steps.latest.outputs.latest_version }}"
           SHA256="${{ steps.prefetch.outputs.sha256 }}"
           
-          # Update version
+          # Update version only
           sed -i "s/version = \".*\"/version = \"${VERSION}\"/" flake.nix
           
-          # Update URL
-          # sed -i "s|url = \".*/better-control/archive/refs/tags/.*\"|url = \"https://github.com/quantumvoid0/better-control/archive/refs/tags/${VERSION}.zip\"|" flake.nix
-          
-          # Update SHA256
-          sed -i "s/sha256 = \".*\"/sha256 = \"${SHA256}\"/" flake.nix
+          # Update SHA256 only (preserving ${version} in URL)
+          sed -i "s|sha256 = \".*\"|sha256 = \"${SHA256}\"|" flake.nix
 
       - name: Commit changes
         if: steps.compare.outputs.update_available == 'true'
         run: |
           git add flake.nix
-          git commit -m "Update better-control to ${{ steps.latest.outputs.latest_version }}"
+          if ! git diff-index --quiet HEAD --; then
+            git commit -m "Update better-control to ${{ steps.latest.outputs.latest_version }}"
+          else
+            echo "No changes to commit"
+          fi
 
       - name: Push changes
         if: steps.compare.outputs.update_available == 'true'
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: update/better-control-${{ steps.latest.outputs.latest_version }}
-          force: true  # Force push to handle any conflicts
+        run: |
+          BRANCH_NAME="update/better-control-${{ steps.latest.outputs.latest_version }}"
+          git push origin "$BRANCH_NAME" --force
 
       - name: Create Pull Request
         if: steps.compare.outputs.update_available == 'true'
@@ -126,5 +126,5 @@ jobs:
           body: "Automated update to version ${{ steps.latest.outputs.latest_version }}"
           branch: update/better-control-${{ steps.latest.outputs.latest_version }}
           base: main
-          delete-branch: true  # Delete branch after PR is merged
+          delete-branch: true
           draft: false
