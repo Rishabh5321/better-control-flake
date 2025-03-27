@@ -12,6 +12,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+
       - name: Get latest version
         id: get_version
         run: |
@@ -22,7 +25,7 @@ jobs:
         run: |
           sed -i "s/version = \"[0-9.]*\";/version = \"$LATEST_VERSION\";/" flake.nix
           NEW_SHA256=$(nix-prefetch-url --unpack "https://github.com/quantumvoid0/better-control/archive/refs/tags/$LATEST_VERSION.zip")
-          sed -i "s|sha256 = \"sha256-[^"]*\";|sha256 = \"$NEW_SHA256\";|" flake.nix
+          sed -i "s|sha256 = \"sha256-[^\"]*\";|sha256 = \"$NEW_SHA256\";|" flake.nix
 
       - name: Commit changes
         run: |
