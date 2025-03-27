@@ -7,6 +7,9 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, ... }:
+    let
+      version = "5.2"; 
+    in
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -16,10 +19,10 @@
 
         packages.better-control = pkgs.stdenv.mkDerivation {
           pname = "better-control";
-          version = "5.2";
+          inherit version;
 
           src = pkgs.fetchzip {
-            url = "https://github.com/quantumvoid0/better-control/archive/refs/tags/5.2.zip";
+            url = "https://github.com/quantumvoid0/better-control/archive/refs/tags/${version}.zip";
             sha256 = "sha256-Kl5bU2fjnwQWlE3NxkTsn3Q0oIPbRnfmBprVDbrcIME=";
           };
 
