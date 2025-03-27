@@ -8,7 +8,7 @@
 
   outputs = { self, nixpkgs, flake-utils, ... }:
     let
-      version = "5.3"; # Define the version here
+      version = "5.5"; # Define the version here
     in
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
@@ -22,8 +22,8 @@
           inherit version;
 
           src = pkgs.fetchzip {
-            url = "https://github.com/quantumvoid0/better-control/archive/refs/tags/${version}.zip";
-            sha256 = "sha256-h8rUpeoBHTa4sP7xwwI3vx9gyxiq2muPx1wZhly3JUA=";
+            url = "https://github.com/quantumvoid0/better-control/archive/refs/tags/5.5.zip";
+            sha256 = "bef3596abc4b6e99b5233406aded7600728bf0f74230bc7dc0651903db8b4ba0";
           };
 
           buildInputs = with pkgs; [
