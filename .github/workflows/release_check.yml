@@ -77,16 +77,23 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           BRANCH_NAME="update/better-control-${{ steps.latest.outputs.latest_version }}"
           
-          # Check if branch exists locally or remotely
+          # Check if branch exists locally
           if git show-ref --quiet refs/heads/"$BRANCH_NAME"; then
             git checkout "$BRANCH_NAME"
+            git fetch origin main
             git reset --hard origin/main
-          elif git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
-            git fetch origin "$BRANCH_NAME"
-            git checkout -b "$BRANCH_NAME" origin/"$BRANCH_NAME"
-            git merge --ff-only origin/main
           else
-            git checkout -b "$BRANCH_NAME"
+           # Check if branch exists remotely
+            if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
+              git fetch origin "$BRANCH_NAME"
+              git checkout -b "$BRANCH_NAME" origin/"$BRANCH_NAME"
+              git fetch origin main
+              git rebase origin/main
+            else
+              # Create new branch from main
+              git fetch origin main
+              git checkout -b "$BRANCH_NAME" origin/main
+            fi
           fi
 
       - name: Update flake.nix
