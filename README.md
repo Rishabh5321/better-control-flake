@@ -4,7 +4,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![flake_check](https://github.com/Rishabh5321/better-control-flake/actions/workflows/flake_check.yml/badge.svg)](https://github.com/Rishabh5321/better-control-flake/actions/workflows/flake_check.yml)
 
+
 This repository provides a Nix flake for Better-control, A GTK-themed control panel for Linux 🐧
+
+NOTE :- Please Enable `services.power-profiles-daemon.enable = true;` if you are having power profile changeing issues.
 
 ## Table of Contents
 1. [Features](#features)
