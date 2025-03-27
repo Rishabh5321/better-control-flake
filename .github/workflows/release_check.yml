@@ -102,28 +102,59 @@ jobs:
           VERSION="${{ steps.latest.outputs.latest_version }}"
           SHA256="${{ steps.prefetch.outputs.sha256 }}"
           
+          # Create backup of original file
+          cp flake.nix flake.nix.bak
+          
           # Update version only
           sed -i "s/version = \".*\"/version = \"${VERSION}\"/" flake.nix
           
           # Update SHA256 only (preserving ${version} in URL)
           sed -i "s|sha256 = \".*\"|sha256 = \"${SHA256}\"|" flake.nix
-
+          
+          # Verify changes were actually made
+          if cmp -s flake.nix flake.nix.bak; then
+            echo "No changes detected after updates!"
+            exit 1
+          fi
+          - name: Update flake.nix
+          if: steps.compare.outputs.update_available == 'true'
+          run: |
+            VERSION="${{ steps.latest.outputs.latest_version }}"
+            SHA256="${{ steps.prefetch.outputs.sha256 }}"
+            
+            # Create backup of original file
+            cp flake.nix flake.nix.bak
+            
+            # Update version only
+            sed -i "s/version = \".*\"/version = \"${VERSION}\"/" flake.nix
+            
+            # Update SHA256 only (preserving ${version} in URL)
+            sed -i "s|sha256 = \".*\"|sha256 = \"${SHA256}\"|" flake.nix
+            
+            # Verify changes were actually made
+            if cmp -s flake.nix flake.nix.bak; then
+              echo "No changes detected after updates!"
+              exit 1
+            fi
+    
       - name: Commit changes
         if: steps.compare.outputs.update_available == 'true'
         run: |
           git add flake.nix
-          if ! git diff-index --quiet HEAD --; then
-            git commit -m "Update better-control to ${{ steps.latest.outputs.latest_version }}"
-          else
-            echo "No changes to commit"
-          fi
-
+            if ! git diff-index --quiet HEAD --; then
+              git commit -m "Update better-control to ${{ steps.latest.outputs.latest_version }}"
+              echo "Changes committed successfully"
+            else
+              echo "No changes to commit"
+              exit 1
+            fi
       - name: Push changes
         if: steps.compare.outputs.update_available == 'true'
         run: |
           BRANCH_NAME="update/better-control-${{ steps.latest.outputs.latest_version }}"
           git push origin "$BRANCH_NAME" --force
-
+          echo "Branch pushed successfully"
+    
       - name: Create Pull Request
         if: steps.compare.outputs.update_available == 'true'
         uses: peter-evans/create-pull-request@v7
@@ -133,5 +164,5 @@ jobs:
           body: "Automated update to version ${{ steps.latest.outputs.latest_version }}"
           branch: update/better-control-${{ steps.latest.outputs.latest_version }}
           base: main
-          delete-branch: true
+          delete-branch: false  # Don't delete branch automatically
           draft: false
