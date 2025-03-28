@@ -3,6 +3,8 @@ name: flake_check
 on:
   push:
   pull_request:
+    branches:
+      - '*'  # Runs on all branches
   workflow_dispatch:
 
 jobs:
