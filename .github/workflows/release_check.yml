@@ -54,10 +54,21 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b update-better-control-$LATEST_VERSION
-          git add flake.nix
-          git commit -m "Update better-control to $LATEST_VERSION"
-          git push origin update-better-control-$LATEST_VERSION
+
+          # Check if branch already exists remotely
+          if git ls-remote --exit-code --heads origin update-better-control-$LATEST_VERSION; then
+            echo "Branch update-better-control-$LATEST_VERSION already exists."
+            echo "PR_EXISTS=true" >> $GITHUB_ENV
+          else
+            git checkout -b update-better-control-$LATEST_VERSION
+            git add flake.nix
+            git commit -m "Update better-control to $LATEST_VERSION"
+            git push origin update-better-control-$LATEST_VERSION || {
+              echo "Push failed. Branch might already exist."
+              echo "PR_EXISTS=true" >> $GITHUB_ENV
+              exit 0
+            }
+          fi
 
       - name: Check for existing PR
         if: env.UPDATE_NEEDED == 'true'
