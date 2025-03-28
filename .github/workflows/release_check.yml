@@ -55,6 +55,15 @@ jobs:
           git checkout -b update-better-control-$LATEST_VERSION
           git add flake.nix
           git commit -m "Update better-control to $LATEST_VERSION"
+          if git ls-remote --exit-code --heads origin update-better-control-$LATEST_VERSION; then
+            git checkout update-better-control-$LATEST_VERSION
+            git pull origin update-better-control-$LATEST_VERSION
+          else
+            git checkout -b update-better-control-$LATEST_VERSION
+          fi
+
+          git add flake.nix
+          git commit -m "Update better-control to $LATEST_VERSION"
           git push origin update-better-control-$LATEST_VERSION
 
       - name: Create Pull Request
