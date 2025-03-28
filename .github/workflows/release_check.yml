@@ -59,8 +59,23 @@ jobs:
           git rebase origin/update-better-control-$LATEST_VERSION || git rebase --abort
           git push --force origin update-better-control-$LATEST_VERSION
 
-      - name: Create Pull Request
+      - name: Check for existing PR
         if: env.UPDATE_NEEDED == 'true'
+        id: check-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if PR already exists
+          PR_EXISTS=$(gh pr list --head "update-better-control-$LATEST_VERSION" --json number --jq 'length')
+          echo "PR_EXISTS=$PR_EXISTS" >> $GITHUB_ENV
+          if [ "$PR_EXISTS" -gt 0 ]; then
+            echo "PR already exists for this update"
+          else
+            echo "No existing PR found"
+          fi
+
+      - name: Create Pull Request
+        if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == '0'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -70,7 +85,11 @@ jobs:
             --head update-better-control-$LATEST_VERSION \
             --base main
 
-      - name: Skip update
-        if: env.UPDATE_NEEDED == 'false'
+      - name: Skip update or PR creation
+        if: env.UPDATE_NEEDED == 'false' || (env.UPDATE_NEEDED == 'true' && env.PR_EXISTS != '0')
         run: |
-          echo "No update needed - current version ($CURRENT_VERSION) is up-to-date"
+          if [ "$UPDATE_NEEDED" = "false" ]; then
+            echo "No update needed - current version ($CURRENT_VERSION) is up-to-date"
+          else
+            echo "PR already exists for version $LATEST_VERSION - skipping PR creation"
+          fi
