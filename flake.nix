@@ -48,7 +48,7 @@
           postPatch = ''
             # Properly update the desktop file to use the correct binary path
             substituteInPlace src/control.desktop \
-              --replace 'Exec=/usr/bin/control' 'Exec=better-control'
+              --replace 'Exec=/usr/bin/better-control' 'Exec=better-control'
           '';
           installPhase = ''
             mkdir -p $out/bin $out/share/better-control $out/share/applications
