@@ -56,7 +56,7 @@
 
           postPatch = ''
             substituteInPlace src/control.desktop \
-              --replace-fail '/usr/bin/control' 'control'
+              --replace-fail '/usr/bin/better-control' 'better-control'
           '';
 
           installPhase = ''
@@ -98,7 +98,8 @@
             homepage = "https://github.com/quantumvoid0/better-control";
             license = licenses.gpl3Only;
             platforms = platforms.linux;
-            maintainers = [ ];
+            mainProgram = "control";
+            maintainers = [ quantumvoid nekrooo];
           };
         };
 
