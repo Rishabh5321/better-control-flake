@@ -12,8 +12,9 @@ NOTE :- Please Enable `services.power-profiles-daemon.enable = true;` if you are
 ## Table of Contents
 1. [Features](#features)
 2. [Installation](#installation)
-
-   - [Using the Flake Directly](#using-the-flake-directly)
+   - [Using the Nix Run](#run-the-application-without-installing)
+   - [Using the Flake Profiles](#using-the-flake-profiles)
+   - [Using the Flake Directly](#integrating-with-nixos-declaratively)
 
 3. [Configuration](#configuration)
 4. [Contributing](#contributing)
@@ -27,6 +28,13 @@ NOTE :- Please Enable `services.power-profiles-daemon.enable = true;` if you are
 ---
 
 ## Installation
+
+### Run the application without installing 
+
+You can run the app directly by using nix run
+```bash
+nix run github:Rishabh5321/better-control-flake#better-control
+```
 
 ### Using the Flake Profiles
 
