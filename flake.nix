@@ -44,7 +44,7 @@
             makeWrapper
           ];
           dontBuild = true;
-          setSourceRoot = "sourceRoot=$(find $PWD -type d -mindepth 1 -maxdepth 1 | head -1)";
+          sourceRoot = "source/";
           postPatch = ''
             # Properly update the desktop file to use the correct binary path
             substituteInPlace src/control.desktop \
