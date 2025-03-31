@@ -99,7 +99,7 @@
             license = licenses.gpl3Only;
             platforms = platforms.linux;
             mainProgram = "control";
-            maintainers = [ quantumvoid nekrooo];
+            maintainers = [ quantumvoid nekrooo ];
           };
         };
 
