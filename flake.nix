@@ -6,7 +6,7 @@
   };
   outputs = { self, nixpkgs, flake-utils, ... }:
     let
-      version = "5.7";
+      version = "5.8";
     in
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
@@ -19,7 +19,7 @@
           inherit version;
           src = pkgs.fetchzip {
             url = "https://github.com/quantumvoid0/better-control/archive/refs/tags/${version}.zip";
-            sha256 = "1mdy4382jrla9wsii7xlgy7wvvqs062q8p67ks1a6y7d63awx9b0";
+            sha256 = "1kijpnkyjvvjyvkk30h0x6n37jr77w14gi5ccasvcj0vlvngdm0m";
           };
           buildInputs = with pkgs; [
             gtk3
@@ -33,6 +33,10 @@
             python3Packages.pydbus
             python3Packages.psutil
             power-profiles-daemon
+            python3Packages.qrcode
+            python3Packages.requests
+            python3Packages.pillow  # For QR code image handling
+            python3Packages.pycairo # For QR code generation
             gammastep
             libpulseaudio
             pulseaudio
@@ -42,6 +46,7 @@
             wrapGAppsHook
             python3Packages.wrapPython
             makeWrapper
+            desktop-file-utils  # For desktop file validation
           ];
           dontBuild = true;
           sourceRoot = "source/";
@@ -57,9 +62,6 @@
             exec python3 $out/share/better-control/better_control.py "\$@"
             EOF
             chmod +x $out/bin/better-control
-
-            # Create control executable (symlink to better-control)
-            # ln -s better-control $out/bin/control
 
             # Install desktop file from the root directory
             cp ${./control.desktop} $out/share/applications/better-control.desktop
@@ -86,7 +88,7 @@
                 pkgs.pango
               ]}" \
               --set PYTHONPATH "$PYTHONPATH:${pkgs.python3Packages.pygobject3}/${pkgs.python3.sitePackages}" \
-              --set DBUS_SYSTEM_BUS_ADDRESS "unix:path=/run/dbus/system_bus_socket"
+              --set DBUS_SYSTEM_BUS_ADDRESS "unix:path=/run/dbus/system_bus_socket" 
           '';
           meta = with pkgs.lib; {
             description = "A system control panel utility";
