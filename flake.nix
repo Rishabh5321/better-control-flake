@@ -59,7 +59,7 @@
             chmod +x $out/bin/better-control
 
             # Create control executable (symlink to better-control)
-            ln -s better-control $out/bin/control
+            # ln -s better-control $out/bin/control
 
             # Install desktop file from the root directory
             cp ${./control.desktop} $out/share/applications/better-control.desktop

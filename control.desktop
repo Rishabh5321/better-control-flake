@@ -3,9 +3,9 @@ Type=Application
 Name=Control Center
 GenericName=Control Center
 Comment=Fast & feature-rich control center
-TryExec=control
+TryExec=better-control
 StartupNotify=true
-Exec=/usr/bin/control
+Exec=better-control
 Icon=settings
 Categories=System;Control;Settings;
 
