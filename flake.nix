@@ -33,6 +33,8 @@
             python3Packages.pydbus
             python3Packages.psutil
             power-profiles-daemon
+            python3Packages.qrcode
+            python3Packages.requests
             gammastep
             libpulseaudio
             pulseaudio
