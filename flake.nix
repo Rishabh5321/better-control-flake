@@ -6,7 +6,7 @@
   };
   outputs = { self, nixpkgs, flake-utils, ... }:
     let
-      version = "5.7";
+      version = "5.8";
     in
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
@@ -19,7 +19,7 @@
           inherit version;
           src = pkgs.fetchzip {
             url = "https://github.com/quantumvoid0/better-control/archive/refs/tags/${version}.zip";
-            sha256 = "1mdy4382jrla9wsii7xlgy7wvvqs062q8p67ks1a6y7d63awx9b0";
+            sha256 = "1kijpnkyjvvjyvkk30h0x6n37jr77w14gi5ccasvcj0vlvngdm0m";
           };
           buildInputs = with pkgs; [
             gtk3
