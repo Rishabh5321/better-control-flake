@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Control Center
+GenericName=Control Center
+Comment=Fast & feature-rich control center
+TryExec=control
+StartupNotify=true
+Exec=/usr/bin/control
+Icon=settings
+Categories=System;Control;Settings;
+
+# A project by "quantumvoid._" and "nekrooo_" <--- discord id

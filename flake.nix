@@ -6,7 +6,7 @@
   };
   outputs = { self, nixpkgs, flake-utils, ... }:
     let
-      version = "5.7"; # Define the version here
+      version = "5.7";
     in
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
@@ -45,11 +45,6 @@
           ];
           dontBuild = true;
           sourceRoot = "source/";
-          postPatch = ''
-            # Properly update the desktop file to use the correct binary path
-            substituteInPlace src/control.desktop \
-              --replace 'Exec=/usr/bin/better-control' 'Exec=better-control'
-          '';
           installPhase = ''
             mkdir -p $out/bin $out/share/better-control $out/share/applications
 
@@ -66,9 +61,8 @@
             # Create control executable (symlink to better-control)
             ln -s better-control $out/bin/control
 
-            # Install desktop file
-            cp src/control.desktop $out/share/applications/better-control.desktop
-            # Ensure desktop file uses the correct path
+            # Install desktop file from the root directory
+            cp ${./control.desktop} $out/share/applications/better-control.desktop
             substituteInPlace $out/share/applications/better-control.desktop \
               --replace 'Exec=better-control' "Exec=$out/bin/better-control"
           '';
@@ -103,7 +97,6 @@
             maintainers = [ maintainers.quantumvoid maintainers.nekrooo ];
           };
         };
-        # Add NixOS module to enable power-profiles-daemon service
         nixosModules.default = { config, lib, ... }: {
           config = lib.mkIf (config.services.power-profiles-daemon.enable or false) {
             services.power-profiles-daemon.enable = true;
