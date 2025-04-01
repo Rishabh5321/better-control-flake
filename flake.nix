@@ -35,6 +35,8 @@
             power-profiles-daemon
             python3Packages.qrcode
             python3Packages.requests
+            python3Packages.pillow  # For QR code image handling
+            python3Packages.pycairo # For QR code generation
             gammastep
             libpulseaudio
             pulseaudio
@@ -44,6 +46,7 @@
             wrapGAppsHook
             python3Packages.wrapPython
             makeWrapper
+            desktop-file-utils  # For desktop file validation
           ];
           dontBuild = true;
           sourceRoot = "source/";
@@ -59,9 +62,6 @@
             exec python3 $out/share/better-control/better_control.py "\$@"
             EOF
             chmod +x $out/bin/better-control
-
-            # Create control executable (symlink to better-control)
-            # ln -s better-control $out/bin/control
 
             # Install desktop file from the root directory
             cp ${./control.desktop} $out/share/applications/better-control.desktop
@@ -88,7 +88,7 @@
                 pkgs.pango
               ]}" \
               --set PYTHONPATH "$PYTHONPATH:${pkgs.python3Packages.pygobject3}/${pkgs.python3.sitePackages}" \
-              --set DBUS_SYSTEM_BUS_ADDRESS "unix:path=/run/dbus/system_bus_socket"
+              --set DBUS_SYSTEM_BUS_ADDRESS "unix:path=/run/dbus/system_bus_socket" 
           '';
           meta = with pkgs.lib; {
             description = "A system control panel utility";
