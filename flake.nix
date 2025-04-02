@@ -35,7 +35,7 @@
             power-profiles-daemon
             python3Packages.qrcode
             python3Packages.requests
-            python3Packages.pillow  # For QR code image handling
+            python3Packages.pillow # For QR code image handling
             python3Packages.pycairo # For QR code generation
             gammastep
             libpulseaudio
@@ -46,7 +46,7 @@
             wrapGAppsHook
             python3Packages.wrapPython
             makeWrapper
-            desktop-file-utils  # For desktop file validation
+            desktop-file-utils # For desktop file validation
           ];
           dontBuild = true;
           sourceRoot = "source/";
