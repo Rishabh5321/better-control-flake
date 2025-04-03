@@ -1,19 +1,19 @@
-{
-  lib,
-  python3Packages,
-  fetchFromGitHub,
-  gtk3,
-  networkmanager,
-  bluez,
-  pipewire,
-  brightnessctl,
-  power-profiles-daemon,
-  gammastep,
-  libpulseaudio,
-  pulseaudio,
-  desktop-file-utils,
-  wrapGAppsHook4,
-  gobject-introspection,
+{ lib
+, python3Packages
+, fetchFromGitHub
+, gtk3
+, networkmanager
+, bluez
+, pipewire
+, brightnessctl
+, power-profiles-daemon
+, gammastep
+, libpulseaudio
+, pulseaudio
+, desktop-file-utils
+, wrapGAppsHook4
+, gobject-introspection
+,
 }:
 
 python3Packages.buildPythonApplication rec {
