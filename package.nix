@@ -20,11 +20,11 @@
 
 stdenv.mkDerivation rec {
   pname = "better-control";
-  version = "5.8";
+  version = "5.9";
 
   src = fetchzip {
     url = "https://github.com/quantumvoid0/better-control/archive/refs/tags/${version}.zip";
-    sha256 = "1kijpnkyjvvjyvkk30h0x6n37jr77w14gi5ccasvcj0vlvngdm0m";
+    sha256 = "0bfn9bww5wyvjd54c62ninfxdkqvj6126zgllfhc8hkmk5lgwbp7";
   };
 
   buildInputs = [
