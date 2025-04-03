@@ -1,111 +1,93 @@
-{ lib
-, stdenv
-, fetchzip
-, gtk3
-, networkmanager
-, bluez
-, pipewire
-, brightnessctl
-, python3
-, power-profiles-daemon
-, gammastep
-, libpulseaudio
-, pulseaudio
-, pkg-config
-, wrapGAppsHook4
-, makeWrapper
-, desktop-file-utils
-, python3Packages
+{
+  lib,
+  python3Packages,
+  fetchFromGitHub,
+  gtk3,
+  networkmanager,
+  bluez,
+  pipewire,
+  brightnessctl,
+  power-profiles-daemon,
+  gammastep,
+  libpulseaudio,
+  pulseaudio,
+  desktop-file-utils,
+  wrapGAppsHook4,
+  gobject-introspection,
 }:
 
-stdenv.mkDerivation rec {
+python3Packages.buildPythonApplication rec {
   pname = "better-control";
-  version = "5.8";
+  version = "5.9";
+  pyproject = false;
 
-  src = fetchzip {
-    url = "https://github.com/quantumvoid0/better-control/archive/refs/tags/${version}.zip";
-    sha256 = "1kijpnkyjvvjyvkk30h0x6n37jr77w14gi5ccasvcj0vlvngdm0m";
+  src = fetchFromGitHub {
+    owner = "quantumvoid0";
+    repo = "better-control";
+    tag = version;
+    hash = "sha256-5y7+aJl1QsSgo/R9I4KRG8/WnY1WGEZKk9vzwvlK1i0=";
   };
+
+  nativeBuildInputs = [
+    desktop-file-utils
+    wrapGAppsHook4
+    gobject-introspection
+  ];
 
   buildInputs = [
     gtk3
-    networkmanager
-    bluez
-    pipewire
-    brightnessctl
-    python3
-    python3Packages.pygobject3
-    python3Packages.dbus-python
-    python3Packages.pydbus
-    python3Packages.psutil
-    power-profiles-daemon
-    python3Packages.qrcode
-    python3Packages.requests
-    python3Packages.pillow
-    python3Packages.pycairo
-    gammastep
     libpulseaudio
-    pulseaudio
   ];
 
-  nativeBuildInputs = [
-    pkg-config
-    wrapGAppsHook4
-    makeWrapper
-    desktop-file-utils
-  ];
+  dependencies =
+    [
+      networkmanager
+      bluez
+      pipewire
+      brightnessctl
+      power-profiles-daemon
+      gammastep
+      pulseaudio
+    ]
+    ++ (with python3Packages; [
+      pygobject3
+      dbus-python
+      pydbus
+      psutil
+      qrcode
+      requests
+      pillow
+      pycairo
+    ]);
 
-  dontBuild = true;
-  sourceRoot = "source/";
+  makeFlags = [ "PREFIX=${placeholder "out"}" ];
 
-  installPhase = ''
-    mkdir -p $out/bin $out/share/better-control $out/share/applications
-    cp -r src/* $out/share/better-control/
-    cat > $out/bin/better-control << EOF
-    #!/bin/sh
-    exec ${python3}/bin/python3 $out/share/better-control/better_control.py "\$@"
-    EOF
-    chmod +x $out/bin/better-control
-    cat > $out/share/applications/better-control.desktop << EOF
-    [Desktop Entry]
-    Type=Application
-    Name=Control Center
-    GenericName=Control Center
-    Comment=Fast & feature-rich control center
-    TryExec=better-control
-    StartupNotify=true
-    Exec=$out/bin/better-control
-    Icon=settings
-    Categories=System;Control;Settings;
-    EOF
+  dontWrapPythonPrograms = true;
+
+  dontWrapGApps = true;
+
+  makeWrapperArgs = [ "\${gappsWrapperArgs[@]}" ];
+
+  postInstall = ''
+    rm $out/bin/control
+    chmod +x $out/share/better-control/better_control.py
+    substituteInPlace $out/bin/better-control \
+      --replace-fail "/bin/bash" "/usr/bin/env bash" \
+      --replace-fail "python3 " ""
+    substituteInPlace $out/share/applications/better-control.desktop \
+      --replace-fail "/usr/bin/" ""
   '';
 
   postFixup = ''
-    wrapProgram $out/bin/better-control \
-      --prefix PATH : ${lib.makeBinPath [
-        python3
-        brightnessctl
-        networkmanager
-        bluez
-        pipewire
-        power-profiles-daemon
-        gammastep
-        libpulseaudio
-        pulseaudio
-      ]} \
-      --prefix GI_TYPELIB_PATH : "${lib.makeSearchPath "lib/girepository-1.0" [
-        gtk3
-        python3Packages.pygobject3
-      ]}" \
-      --set PYTHONPATH "$PYTHONPATH:${python3Packages.pygobject3}/${python3.sitePackages}" \
-      --set DBUS_SYSTEM_BUS_ADDRESS "unix:path=/run/dbus/system_bus_socket"
+    wrapPythonProgramsIn "$out/share/better-control" "$out $pythonPath"
   '';
 
-  meta = with lib; {
-    description = "A system control panel utility";
+  meta = {
+    description = "System control panel utility";
     homepage = "https://github.com/quantumvoid0/better-control";
-    license = licenses.gpl3Only;
-    platforms = [ "x86_64-linux" ];
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [ Rishabh5321 ];
+    platforms = lib.platforms.linux;
     mainProgram = "better-control";
   };
 }
