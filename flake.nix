@@ -10,23 +10,23 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        better-control = pkgs.callPackage ./package.nix {};
+        better-control = pkgs.callPackage ./package.nix { };
       in
       {
         packages = {
           default = better-control;
-          better-control = better-control;
+          inherit better-control;
         };
 
         apps.default = {
           type = "app";
           program = "${better-control}/bin/better-control";
-          meta = better-control.meta; 
+          inherit (better-control) meta;
         };
 
         devShells.default = pkgs.mkShell {
-          buildInputs = better-control.buildInputs;
-          nativeBuildInputs = better-control.nativeBuildInputs;
+          inherit (better-control) buildInputs;
+          inherit (better-control) nativeBuildInputs;
         };
       });
 }
