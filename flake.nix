@@ -21,6 +21,7 @@
         apps.default = {
           type = "app";
           program = "${better-control}/bin/better-control";
+          meta = better-control.meta; 
         };
 
         devShells.default = pkgs.mkShell {

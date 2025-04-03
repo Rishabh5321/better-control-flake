@@ -105,7 +105,7 @@ stdenv.mkDerivation rec {
     description = "A system control panel utility";
     homepage = "https://github.com/quantumvoid0/better-control";
     license = licenses.gpl3Only;
-    platforms = platforms.linux;
+    platforms = [ "x86_64-linux" ]; 
     mainProgram = "better-control";
   };
 }
