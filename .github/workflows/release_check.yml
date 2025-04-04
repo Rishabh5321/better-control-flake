@@ -16,16 +16,15 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v31
 
-      - name: Install GitHub CLI
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y gh jq
+          nix profile install nixpkgs#nix-prefetch-github nixpkgs#nix-prefetch-git nixpkgs#jq
 
       - name: Get current and latest versions
         id: versions
         run: |
-          nix profile install nixpkgs#nix-prefetch-github
-
           CURRENT_VERSION=$(grep -oP 'version = "\K[0-9.]+(?=";)' package.nix)
           echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
 
@@ -41,8 +40,14 @@ jobs:
       - name: Update version and hash
         if: env.UPDATE_NEEDED == 'true'
         run: |
+          # Update version in package.nix
           sed -i "s/version = \".*\";/version = \"$LATEST_VERSION\";/" package.nix
-          NEW_HASH=$(nix-prefetch-github quantumvoid0 better-control --rev "$LATEST_VERSION" | jq -r .hash)
+          
+          # Get hash using nix-prefetch-github in a nix-shell environment
+          PREFETCH_JSON=$(nix-shell -p nix-prefetch-github jq --run "nix-prefetch-github quantumvoid0 better-control --rev \"$LATEST_VERSION\"")
+          NEW_HASH=$(echo "$PREFETCH_JSON" | jq -r .hash)
+          
+          # Update hash in package.nix
           sed -i "s|hash = \".*\";|hash = \"$NEW_HASH\";|" package.nix
 
       - name: Commit and push changes
@@ -56,4 +61,3 @@ jobs:
           git add package.nix
           git commit -m "Update better-control to $LATEST_VERSION"
           git push -f origin "$BRANCH"
-  
