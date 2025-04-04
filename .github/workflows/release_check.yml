@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for checking existing PRs
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
@@ -74,3 +76,26 @@ jobs:
           git add package.nix
           git commit -m "Update better-control to $LATEST_VERSION"
           git push -f origin "$BRANCH"
+
+      - name: Create or update PR
+        if: env.UPDATE_NEEDED == 'true'
+        run: |
+          BRANCH="update-better-control-$LATEST_VERSION"
+          PR_TITLE="Update better-control to $LATEST_VERSION"
+          PR_BODY="Automated version update for better-control package"
+          
+          # Check if PR already exists
+          PR_EXISTS=$(gh pr list --head "$BRANCH" --json id -q 'length')
+          
+          if [ "$PR_EXISTS" -eq 0 ]; then
+            echo "Creating new PR"
+            gh pr create \
+              --title "$PR_TITLE" \
+              --body "$PR_BODY" \
+              --head "$BRANCH" \
+              --base "main"
+          else
+            echo "PR already exists, updating branch"
+            # The branch was already force-pushed in the previous step
+            # No additional action needed as the PR will automatically update
+          fi
