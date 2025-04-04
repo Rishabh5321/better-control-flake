@@ -19,8 +19,8 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gh jq
-          nix profile install nixpkgs#nix-prefetch-github nixpkgs#nix-prefetch-git nixpkgs#jq
+          sudo apt-get install -y gh
+          nix profile install nixpkgs#nix-prefetch-github nixpkgs#jq
 
       - name: Get current and latest versions
         id: versions
@@ -40,14 +40,9 @@ jobs:
       - name: Update version and hash
         if: env.UPDATE_NEEDED == 'true'
         run: |
-          # Update version in package.nix
           sed -i "s/version = \".*\";/version = \"$LATEST_VERSION\";/" package.nix
-          
-          # Get hash using nix-prefetch-github in a nix-shell environment
-          PREFETCH_JSON=$(nix-shell -p nix-prefetch-github jq --run "nix-prefetch-github quantumvoid0 better-control --rev \"$LATEST_VERSION\"")
+          PREFETCH_JSON=$(nix-prefetch-github quantumvoid0 better-control --rev "$LATEST_VERSION")
           NEW_HASH=$(echo "$PREFETCH_JSON" | jq -r .hash)
-          
-          # Update hash in package.nix
           sed -i "s|hash = \".*\";|hash = \"$NEW_HASH\";|" package.nix
 
       - name: Commit and push changes
