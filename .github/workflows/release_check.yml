@@ -42,7 +42,7 @@ jobs:
           fi
 
       - name: Update version and hash
-        if: env.UPDATE_NEEDED == 'true'
+        if: ${{ env.UPDATE_NEEDED == 'true' }}
         run: |
           # Update version in package.nix
           sed -i "s/version = \".*\";/version = \"$LATEST_VERSION\";/" package.nix
@@ -66,7 +66,7 @@ jobs:
           sed -i "s|hash = \".*\";|hash = \"$NEW_HASH\";|" package.nix
 
       - name: Commit and push changes
-        if: env.UPDATE_NEEDED == 'true'
+        if: ${{ env.UPDATE_NEEDED == 'true' }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -78,11 +78,12 @@ jobs:
           git push -f origin "$BRANCH"
 
       - name: Create Pull Request
+        if: ${{ env.UPDATE_NEEDED == 'true' }}
         uses: peter-evans/create-pull-request@v7
         with:
           commit-message: 'chore: update better-control version'
           title: 'Update better-control version'
           body: 'This is an auto-generated PR to update better-control to the latest version.'
-          branch: update-better-control-$LATEST_VERSION
+          branch: update-better-control-${{ env.LATEST_VERSION }}
           delete-branch: true
-          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
