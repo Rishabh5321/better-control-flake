@@ -40,14 +40,14 @@ jobs:
             echo "UPDATE_NEEDED=true" >> $GITHUB_ENV
           fi
 
-      - name: Update version and sha256
+      - name: Update version and hash
         if: env.UPDATE_NEEDED == 'true'
         run: |
           sed -i "s/version = \"[0-9.]*\";/version = \"$LATEST_VERSION\";/" package.nix
 
-          NEW_SHA256=$(nix-prefetch-url --unpack "https://github.com/quantumvoid0/better-control/archive/refs/tags/$LATEST_VERSION.zip" | tail -n1)
+          NEW_HASH=$(nix-prefetch-url --unpack "https://github.com/quantumvoid0/better-control/archive/refs/tags/$LATEST_VERSION.zip" | tail -n1)
 
-          sed -i "s|sha256 = \".*\";|sha256 = \"$NEW_SHA256\";|" package.nix
+          sed -i "s|hash = \".*\";|hash = \"$NEW_HASH\";|" package.nix
 
       - name: Commit changes
         if: env.UPDATE_NEEDED == 'true'
