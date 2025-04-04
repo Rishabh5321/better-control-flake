@@ -87,4 +87,4 @@ jobs:
           branch: update-better-control-${{ env.LATEST_VERSION }}
           #delete-branch: true
           base: main
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
