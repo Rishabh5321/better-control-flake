@@ -18,14 +18,14 @@
 
 python3Packages.buildPythonApplication rec {
   pname = "better-control";
-  version = "6.1";
+  version = "5.9";
   pyproject = false;
 
   src = fetchFromGitHub {
     owner = "quantumvoid0";
     repo = "better-control";
     tag = version;
-    hash = "sha256-L//PkRtZgpsgBkDUyZuFcUqIVTu2ZC20RG0KDGxBNeE=";
+    hash = "sha256-5y7+aJl1QsSgo/R9I4KRG8/WnY1WGEZKk9vzwvlK1i0=";
   };
 
   nativeBuildInputs = [
@@ -57,7 +57,6 @@ python3Packages.buildPythonApplication rec {
       qrcode
       requests
       pillow
-      setproctitle
       pycairo
     ]);
 
