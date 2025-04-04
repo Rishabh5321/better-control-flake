@@ -56,19 +56,4 @@ jobs:
           git add package.nix
           git commit -m "Update better-control to $LATEST_VERSION"
           git push -f origin "$BRANCH"
-
-      - name: Create Pull Request if not exists
-        if: env.UPDATE_NEEDED == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          BRANCH="update-better-control-$LATEST_VERSION"
-          if gh pr view "$BRANCH" > /dev/null 2>&1; then
-            echo "PR already exists for $BRANCH. Letting GitHub update it."
-          else
-            gh pr create \
-              --title "Update better-control to $LATEST_VERSION" \
-              --body "This updates better-control to version $LATEST_VERSION." \
-              --head "$BRANCH" \
-              --base main
   
