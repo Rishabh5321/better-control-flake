@@ -18,7 +18,7 @@ jobs:
       - name: Install GitHub CLI
         run: |
           sudo apt-get update
-          sudo apt-get install -y gh jq
+          sudo apt-get install -y gh jq curl
 
       - name: Get current and latest versions
         id: versions
@@ -27,8 +27,25 @@ jobs:
           CURRENT_VERSION=$(grep -oP 'version = "\K[0-9.]+(?=";)' package.nix | tail -n1)
           echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
           
-          # Get latest version from GitHub
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/quantumvoid0/better-control/releases/latest | jq -r .tag_name)
+          # Get latest version from GitHub with error handling
+          LATEST_VERSION=$(curl -s -f https://api.github.com/repos/quantumvoid0/better-control/releases/latest | jq -r .tag_name)
+          
+          # Check if LATEST_VERSION is null or empty
+          if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+            echo "Failed to get latest version from GitHub API"
+            echo "Checking tags as fallback..."
+            
+            # Try to get latest version from tags as fallback
+            LATEST_VERSION=$(curl -s -f https://api.github.com/repos/quantumvoid0/better-control/tags | jq -r '.[0].name')
+            
+            # If still null, exit with error
+            if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+              echo "Failed to get latest version from tags"
+              echo "UPDATE_NEEDED=false" >> $GITHUB_ENV
+              exit 1
+            fi
+          fi
+          
           echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
           
           # Compare versions
@@ -43,6 +60,12 @@ jobs:
       - name: Update version in package.nix
         if: env.UPDATE_NEEDED == 'true'
         run: |
+          # Verify LATEST_VERSION is valid
+          if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+            echo "LATEST_VERSION is not valid. Exiting."
+            exit 1
+          fi
+          
           # Remove the old duplicate version line if it exists
           sed -i '/^version = "[0-9.]*";$/d' package.nix
           
@@ -55,11 +78,33 @@ jobs:
       - name: Update hash in package.nix
         if: env.UPDATE_NEEDED == 'true'
         run: |
-          # Get the new hash using nix-prefetch-url
-          BASE_HASH=$(nix-prefetch-url --unpack "https://github.com/quantumvoid0/better-control/archive/refs/tags/$LATEST_VERSION.tar.gz" 2>/dev/null)
+          # Verify LATEST_VERSION is valid
+          if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+            echo "LATEST_VERSION is not valid. Exiting."
+            exit 1
+          fi
+          
+          # Construct the URL
+          ARCHIVE_URL="https://github.com/quantumvoid0/better-control/archive/refs/tags/$LATEST_VERSION.tar.gz"
+          echo "Fetching hash for: $ARCHIVE_URL"
+          
+          # Get the new hash using nix-prefetch-url with better error handling
+          BASE_HASH=$(nix-prefetch-url --unpack "$ARCHIVE_URL" 2>&1) || {
+            echo "Error fetching hash: $BASE_HASH"
+            # Try .zip extension as fallback
+            echo "Trying .zip format as fallback..."
+            ARCHIVE_URL="https://github.com/quantumvoid0/better-control/archive/refs/tags/$LATEST_VERSION.zip"
+            BASE_HASH=$(nix-prefetch-url --unpack "$ARCHIVE_URL" 2>&1) || {
+              echo "Error fetching hash with .zip format: $BASE_HASH"
+              exit 1
+            }
+          }
           
           # Convert to SRI format with sha256- prefix
-          SRI_HASH=$(nix hash to-sri --type sha256 "$BASE_HASH")
+          SRI_HASH=$(nix hash to-sri --type sha256 "$BASE_HASH") || {
+            echo "Error converting hash to SRI format: $SRI_HASH"
+            exit 1
+          }
           
           # Update the hash in package.nix
           sed -i "s|hash = \"[^\"]*\";|hash = \"$SRI_HASH\";|" package.nix
