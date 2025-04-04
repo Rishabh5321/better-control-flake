@@ -23,6 +23,7 @@ jobs:
       - name: Get current and latest versions
         id: versions
         run: |
+          nix profile install nixpkgs#nix-prefetch-github
           CURRENT_VERSION=$(grep -oP 'version = "\K[0-9.]+(?=";)' package.nix)
           echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
 
