@@ -18,13 +18,13 @@ jobs:
       - name: Install GitHub CLI
         run: |
           sudo apt-get update
-          sudo apt-get install -y gh
+          sudo apt-get install -y gh jq
 
       - name: Get current and latest versions
         id: versions
         run: |
           # Get current version from package.nix
-          CURRENT_VERSION=$(grep -oP 'version = "\K[0-9.]+(?=";)' package.nix)
+          CURRENT_VERSION=$(grep -oP 'version = "\K[0-9.]+(?=";)' package.nix | tail -n1)
           echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
           
           # Get latest version from GitHub
@@ -40,14 +40,32 @@ jobs:
             echo "UPDATE_NEEDED=true" >> $GITHUB_ENV
           fi
 
-      - name: Update version and hash
+      - name: Update version in package.nix
         if: env.UPDATE_NEEDED == 'true'
         run: |
-          sed -i "s/version = \"[0-9.]*\";/version = \"$LATEST_VERSION\";/" package.nix
+          # Remove the old duplicate version line if it exists
+          sed -i '/^version = "[0-9.]*";$/d' package.nix
+          
+          # Add the new version after "pname = "better-control";"
+          sed -i '/pname = "better-control";/a version = "'$LATEST_VERSION'";' package.nix
+          
+          # Update the tag line
+          sed -i "s/tag = [^;]*;/tag = version;/" package.nix
 
-          NEW_HASH=$(nix-prefetch-url --unpack "https://github.com/quantumvoid0/better-control/archive/refs/tags/$LATEST_VERSION.zip" | tail -n1)
-
-          sed -i "s|hash = \".*\";|hash = \"$NEW_HASH\";|" package.nix
+      - name: Update hash in package.nix
+        if: env.UPDATE_NEEDED == 'true'
+        run: |
+          # Get the new hash using nix-prefetch-url
+          BASE_HASH=$(nix-prefetch-url --unpack "https://github.com/quantumvoid0/better-control/archive/refs/tags/$LATEST_VERSION.tar.gz" 2>/dev/null)
+          
+          # Convert to SRI format with sha256- prefix
+          SRI_HASH=$(nix hash to-sri --type sha256 "$BASE_HASH")
+          
+          # Update the hash in package.nix
+          sed -i "s|hash = \"[^\"]*\";|hash = \"$SRI_HASH\";|" package.nix
+          
+          # Print the result for debugging
+          echo "Updated version to $LATEST_VERSION with hash $SRI_HASH"
 
       - name: Commit changes
         if: env.UPDATE_NEEDED == 'true'
@@ -55,23 +73,19 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Check if branch already exists remotely
-          if git ls-remote --exit-code --heads origin update-better-control-$LATEST_VERSION; then
-            echo "Branch update-better-control-$LATEST_VERSION already exists."
-            echo "PR_EXISTS=true" >> $GITHUB_ENV
-          else
-            git checkout -b update-better-control-$LATEST_VERSION
-            git add package.nix
-            git commit -m "Update better-control to $LATEST_VERSION"
-            git push origin update-better-control-$LATEST_VERSION || {
-              echo "Push failed. Branch might already exist."
-              echo "PR_EXISTS=true" >> $GITHUB_ENV
-              exit 0
-            }
-          fi
+          # Always create a new branch or reset existing one
+          git checkout -B update-better-control-$LATEST_VERSION
+          git add package.nix
+          git commit -m "Update better-control to $LATEST_VERSION"
+          
+          # Force push to ensure the branch is updated
+          git push --force origin update-better-control-$LATEST_VERSION
+          
+          # If push was successful, we know the branch exists now
+          echo "BRANCH_UPDATED=true" >> $GITHUB_ENV
 
       - name: Check for existing PR
-        if: env.UPDATE_NEEDED == 'true'
+        if: env.UPDATE_NEEDED == 'true' && env.BRANCH_UPDATED == 'true'
         id: check-pr
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -86,7 +100,7 @@ jobs:
           fi
 
       - name: Create Pull Request
-        if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == '0'
+        if: env.UPDATE_NEEDED == 'true' && env.BRANCH_UPDATED == 'true' && env.PR_EXISTS == '0'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -101,6 +115,6 @@ jobs:
         run: |
           if [ "$UPDATE_NEEDED" = "false" ]; then
             echo "No update needed - current version ($CURRENT_VERSION) is up-to-date"
-          else
+          elif [ "$PR_EXISTS" != "0" ]; then
             echo "PR already exists for version $LATEST_VERSION - skipping PR creation"
           fi
