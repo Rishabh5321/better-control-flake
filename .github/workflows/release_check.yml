@@ -88,23 +88,32 @@ jobs:
           ARCHIVE_URL="https://github.com/quantumvoid0/better-control/archive/refs/tags/$LATEST_VERSION.tar.gz"
           echo "Fetching hash for: $ARCHIVE_URL"
           
-          # Get the new hash using nix-prefetch-url with better error handling
-          BASE_HASH=$(nix-prefetch-url --unpack "$ARCHIVE_URL" 2>&1) || {
-            echo "Error fetching hash: $BASE_HASH"
-            # Try .zip extension as fallback
+          # Get the new hash using nix-prefetch-url - extract only the hash
+          BASE_HASH=$(nix-prefetch-url --unpack "$ARCHIVE_URL" 2>/dev/null | tail -n1)
+          
+          if [ -z "$BASE_HASH" ]; then
+            echo "Failed to get hash with tar.gz format"
             echo "Trying .zip format as fallback..."
             ARCHIVE_URL="https://github.com/quantumvoid0/better-control/archive/refs/tags/$LATEST_VERSION.zip"
-            BASE_HASH=$(nix-prefetch-url --unpack "$ARCHIVE_URL" 2>&1) || {
-              echo "Error fetching hash with .zip format: $BASE_HASH"
+            BASE_HASH=$(nix-prefetch-url --unpack "$ARCHIVE_URL" 2>/dev/null | tail -n1)
+            
+            if [ -z "$BASE_HASH" ]; then
+              echo "Failed to get hash with zip format too"
               exit 1
-            }
-          }
+            fi
+          fi
           
-          # Convert to SRI format with sha256- prefix
-          SRI_HASH=$(nix hash to-sri --type sha256 "$BASE_HASH") || {
-            echo "Error converting hash to SRI format: $SRI_HASH"
+          echo "Got raw hash: $BASE_HASH"
+          
+          # Generate SRI hash format (sha256- prefix) using nix hash convert
+          SRI_HASH=$(echo "$BASE_HASH" | nix hash convert --to sri --type sha256)
+          
+          if [ -z "$SRI_HASH" ]; then
+            echo "Failed to convert hash to SRI format"
             exit 1
-          }
+          fi
+          
+          echo "Converted to SRI hash: $SRI_HASH"
           
           # Update the hash in package.nix
           sed -i "s|hash = \"[^\"]*\";|hash = \"$SRI_HASH\";|" package.nix
