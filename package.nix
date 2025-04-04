@@ -87,7 +87,7 @@ python3Packages.buildPythonApplication rec {
     homepage = "https://github.com/quantumvoid0/better-control";
     license = lib.licenses.gpl3Plus;
     maintainers = with lib.maintainers; [ Rishabh5321 ];
-    platforms = lib.platforms.linux;
+    platforms = = [ "x86_64-linux" ];
     mainProgram = "better-control";
   };
 }
