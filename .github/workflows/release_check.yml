@@ -71,3 +71,4 @@ jobs:
               --body "This updates better-control to version $LATEST_VERSION." \
               --head "$BRANCH" \
               --base main
+  
