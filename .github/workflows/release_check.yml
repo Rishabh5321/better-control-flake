@@ -40,9 +40,25 @@ jobs:
       - name: Update version and hash
         if: env.UPDATE_NEEDED == 'true'
         run: |
+          # Update version in package.nix
           sed -i "s/version = \".*\";/version = \"$LATEST_VERSION\";/" package.nix
-          PREFETCH_JSON=$(nix-prefetch-github quantumvoid0 better-control --rev "$LATEST_VERSION")
-          NEW_HASH=$(echo "$PREFETCH_JSON" | jq -r .hash)
+          
+          # Run nix-prefetch-github and capture all output
+          echo "Running: nix-prefetch-github quantumvoid0 better-control --rev $LATEST_VERSION"
+          PREFETCH_OUTPUT=$(nix-prefetch-github quantumvoid0 better-control --rev "$LATEST_VERSION" 2>&1)
+          echo "Prefetch output:"
+          echo "$PREFETCH_OUTPUT"
+          
+          # Extract hash from output
+          NEW_HASH=$(echo "$PREFETCH_OUTPUT" | jq -r .hash)
+          echo "Extracted hash: $NEW_HASH"
+          
+          if [ -z "$NEW_HASH" ]; then
+            echo "::error::Failed to extract hash from prefetch output"
+            exit 1
+          fi
+          
+          # Update hash in package.nix
           sed -i "s|hash = \".*\";|hash = \"$NEW_HASH\";|" package.nix
 
       - name: Commit and push changes
