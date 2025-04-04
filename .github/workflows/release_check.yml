@@ -86,4 +86,5 @@ jobs:
           body: 'This is an auto-generated PR to update better-control to the latest version.'
           branch: update-better-control-${{ env.LATEST_VERSION }}
           delete-branch: true
+          base: main
           token: ${{ secrets.GITHUB_TOKEN }}
