@@ -84,6 +84,5 @@ jobs:
           title: 'Update better-control version'
           body: 'This is an auto-generated PR to update better-control to the latest version.'
           branch: update-better-control-$LATEST_VERSION
-          base: main  
           delete-branch: true
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
