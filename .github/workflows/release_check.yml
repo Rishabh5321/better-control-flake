@@ -46,22 +46,22 @@ jobs:
         run: |
           # Update version in package.nix
           sed -i "s/version = \".*\";/version = \"$LATEST_VERSION\";/" package.nix
-          
+
           # Run nix-prefetch-github and capture all output
           echo "Running: nix-prefetch-github quantumvoid0 better-control --rev $LATEST_VERSION"
           PREFETCH_OUTPUT=$(nix-prefetch-github quantumvoid0 better-control --rev "$LATEST_VERSION" 2>&1)
           echo "Prefetch output:"
           echo "$PREFETCH_OUTPUT"
-          
+
           # Extract hash from output
           NEW_HASH=$(echo "$PREFETCH_OUTPUT" | jq -r .hash)
           echo "Extracted hash: $NEW_HASH"
-          
+
           if [ -z "$NEW_HASH" ]; then
             echo "::error::Failed to extract hash from prefetch output"
             exit 1
           fi
-          
+
           # Update hash in package.nix
           sed -i "s|hash = \".*\";|hash = \"$NEW_HASH\";|" package.nix
 
@@ -70,7 +70,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           BRANCH="update-better-control-$LATEST_VERSION"
           git checkout -B "$BRANCH"
           git add package.nix
@@ -79,12 +79,37 @@ jobs:
 
       - name: Create Pull Request
         if: ${{ env.UPDATE_NEEDED == 'true' }}
-        uses: peter-evans/create-pull-request@v7
+        uses: actions/github-script@v7
         with:
-          commit-message: 'chore: update better-control version'
-          title: 'Update better-control version'
-          body: 'This is an auto-generated PR to update better-control to the latest version.'
-          branch: update-better-control-${{ env.LATEST_VERSION }}
-          #delete-branch: true
-          base: main
-          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { CURRENT_VERSION, LATEST_VERSION } = process.env;
+            const branchName = `update-better-control-${LATEST_VERSION}`;
+            const title = `Update better-control to ${LATEST_VERSION}`;
+            const body = `This PR updates better-control from version ${CURRENT_VERSION} to ${LATEST_VERSION}.`;
+
+            try {
+              const { data: pulls } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                head: `${context.repo.owner}:${branchName}`,
+                base: 'main', // Or your main branch name
+                state: 'open',
+              });
+
+              if (pulls.length > 0) {
+                console.log(`Open pull request found for branch ${branchName}. Skipping creation.`);
+              } else {
+                const { data: pullRequest } = await github.rest.pulls.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  head: branchName,
+                  base: 'main', // Or your main branch name
+                  title: title,
+                  body: body,
+                });
+                console.log(`Pull request created: ${pullRequest.html_url}`);
+              }
+            } catch (error) {
+              console.error('Failed to create pull request:', error);
+            }
