@@ -46,17 +46,21 @@ jobs:
           NEW_HASH=$(nix-prefetch-github quantumvoid0 better-control --rev "$LATEST_VERSION" | jq -r .hash)
           sed -i "s|hash = \".*\";|hash = \"$NEW_HASH\";|" package.nix
 
-      - name: Commit and push changes
+      - name: Create Pull Request if not exists
         if: env.UPDATE_NEEDED == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
           BRANCH="update-better-control-$LATEST_VERSION"
-          git checkout -B "$BRANCH"
-          git add package.nix
-          git commit -m "Update better-control to $LATEST_VERSION"
-          git push -f origin "$BRANCH"
+          if gh pr view "$BRANCH" > /dev/null 2>&1; then
+            echo "PR already exists for $BRANCH. Letting GitHub update it."
+          else
+            gh pr create \
+              --title "Update better-control to $LATEST_VERSION" \
+              --body "This updates better-control to version $LATEST_VERSION." \
+              --head "$BRANCH" \
+              --base main
+
 
       - name: Create Pull Request if not exists
         if: env.UPDATE_NEEDED == 'true'
