@@ -56,6 +56,7 @@ python3Packages.buildPythonApplication rec {
       psutil
       qrcode
       requests
+      setproctitle
       pillow
       pycairo
     ]);
