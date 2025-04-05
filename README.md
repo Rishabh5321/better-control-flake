@@ -9,6 +9,8 @@ This repository provides a Nix flake for Better-control, A GTK-themed control pa
 
 NOTE :- Please Enable `services.power-profiles-daemon.enable = true;` if you are having power profile changing issues.
 
+NOTE :- Please Enable `services.usbguard.enable = true;` if you want usbguard to work. (Also note will have to update your users permission to use usb guard here is my file for reference [users.nix](#https://github.com/Rishabh5321/dotfiles/blob/main/modules/nixos/users.nix)).
+
 ## Table of Contents
 1. [Features](#features)
 2. [Installation](#installation)

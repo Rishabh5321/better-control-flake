@@ -13,7 +13,7 @@
 , desktop-file-utils
 , wrapGAppsHook4
 , gobject-introspection
-,
+, usbguard
 }:
 
 python3Packages.buildPythonApplication rec {
@@ -48,6 +48,7 @@ python3Packages.buildPythonApplication rec {
       power-profiles-daemon
       gammastep
       pulseaudio
+      usbguard
     ]
     ++ (with python3Packages; [
       pygobject3
