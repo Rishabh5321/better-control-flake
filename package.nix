@@ -80,8 +80,9 @@ python3Packages.buildPythonApplication rec {
   '';
 
   postFixup = ''
-    wrapPythonProgramsIn "$out/share/better-control" "$out $pythonPath"
+    wrapPythonProgramsIn "$out/share/better-control" "$out $pythonPath \''${gappsWrapperArgs[@]}"
   '';
+
 
   meta = {
     description = "System control panel utility";
