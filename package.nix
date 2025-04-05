@@ -53,6 +53,7 @@ python3Packages.buildPythonApplication rec {
       pygobject3
       dbus-python
       pydbus
+      setproctitle
       psutil
       qrcode
       requests
