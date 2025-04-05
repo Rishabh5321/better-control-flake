@@ -1,8 +1,10 @@
+# .github/workflows/update-better-control.yml
 name: Update better-control version
 
 on:
   schedule:
-    - cron: '0 * * * *' # Runs hourly
+    # Runs hourly (adjust as needed, e.g., '0 8 * * *' for daily at 8 AM UTC)
+    - cron: '0 * * * *'
   workflow_dispatch: # Allows manual triggering
 
 jobs:
@@ -17,39 +19,64 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Needed for checking existing PRs and branch operations
+          # Fetch all history for accurate version comparison and branch operations
+          fetch-depth: 0
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
         with:
+          # Use nixpkgs-unstable channel for potentially newer tools
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Install dependencies
+      - name: Install dependencies (using Nix)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gh # Install GitHub CLI
-          nix profile install nixpkgs#nix-prefetch-github nixpkgs#jq
+          # Install necessary tools using nix profile for better isolation
+          nix profile install nixpkgs#gh nixpkgs#nix-prefetch-github nixpkgs#jq nixpkgs#gnused nixpkgs#gnugrep
+
+          # Add Nix binaries to PATH for subsequent steps
+          echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
+          # Verify installation
+          gh --version
+          nix-prefetch-github --version
+          jq --version
+          sed --version || true # gnu sed might not have --version
+          grep --version || true # gnu grep might not have --version
 
       - name: Get current and latest versions
         id: versions
+        env:
+          # Use GITHUB_TOKEN for potentially higher rate limits with GitHub API
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Extract current version from package.nix
-          CURRENT_VERSION=$(grep -oP 'version = "\K[0-9.]+(?=";)' package.nix || echo "0.0.0") # Default if not found
-          echo "Current version: $CURRENT_VERSION"
+          # Extract current version from package.nix using grep with Perl regex
+          # Fallback to 0.0.0 if not found or file doesn't exist
+          CURRENT_VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' package.nix || echo "0.0.0")
+          echo "Current version found in package.nix: $CURRENT_VERSION"
           echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
 
-          # Fetch latest release tag from GitHub API (using token for rate limits)
-          LATEST_RELEASE_INFO=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/quantumvoid0/better-control/releases/latest)
+          # Fetch latest release tag from GitHub API
+          echo "Fetching latest release info from GitHub API..."
+          # Use gh cli for potentially more robust API interaction
+          LATEST_RELEASE_INFO=$(gh api repos/quantumvoid0/better-control/releases/latest)
+          if [ -z "$LATEST_RELEASE_INFO" ]; then
+             echo "::error::Failed to fetch latest release info from GitHub API."
+             exit 1
+          fi
+
           LATEST_VERSION=$(echo "$LATEST_RELEASE_INFO" | jq -r .tag_name)
 
+          # Validate fetched version
           if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" == "null" ]; then
-            echo "::warning::Could not fetch latest version tag from GitHub API."
-            echo "UPDATE_NEEDED=false" >> $GITHUB_ENV
+            echo "::error::Could not extract latest version tag from GitHub API response."
+            echo "API Response: $LATEST_RELEASE_INFO"
+            exit 1
           else
-            echo "Latest version: $LATEST_VERSION"
+            # Often tags have 'v' prefix, remove it for comparison if necessary
+            # LATEST_VERSION=${LATEST_VERSION#v} # Uncomment if tags are like v1.2.3
+            echo "Latest version from GitHub API: $LATEST_VERSION"
             echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
 
-            # Compare versions
+            # Compare versions (simple string comparison, consider using version sort if needed)
             if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
               echo "better-control is up-to-date ($CURRENT_VERSION)."
               echo "UPDATE_NEEDED=false" >> $GITHUB_ENV
@@ -64,15 +91,19 @@ jobs:
         # Only run if an update is potentially needed
         if: env.UPDATE_NEEDED == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Still needed for gh cli
+          # GITHUB_TOKEN needed for gh cli to interact with the repo
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Define branch name early using the determined LATEST_VERSION
           BRANCH_NAME: "update-better-control-${{ env.LATEST_VERSION }}"
         run: |
-          echo "Checking for existing PR for branch: $BRANCH_NAME"
-          # Use gh cli to find open PRs originating from the expected head branch
-          EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --state open --json number --jq '.[0].number')
+          echo "Checking for existing open PR for branch: $BRANCH_NAME"
+          # Use gh pr list to find open PRs targeting the default branch from the head branch
+          # Ensure you replace 'main' if your default branch is different
+          EXISTING_PR_URL=$(gh pr list --head "$BRANCH_NAME" --base main --state open --json url --jq '.[0].url')
 
-          if [ -n "$EXISTING_PR" ]; then
-            echo "::warning::An open pull request (#$EXISTING_PR) already exists for branch $BRANCH_NAME. Skipping update steps."
+          if [ -n "$EXISTING_PR_URL" ]; then
+            echo "::warning::An open pull request already exists for branch $BRANCH_NAME: $EXISTING_PR_URL"
+            echo "Skipping update and PR creation steps."
             echo "PR_EXISTS=true" >> $GITHUB_ENV
           else
             echo "No existing open PR found for branch $BRANCH_NAME."
@@ -83,122 +114,175 @@ jobs:
         # Only run if update is needed AND no existing PR was found
         if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == 'false'
         env:
-           LATEST_VERSION: ${{ env.LATEST_VERSION }} # Ensure LATEST_VERSION is available
+           # Pass LATEST_VERSION to this step's environment
+           LATEST_VERSION: ${{ env.LATEST_VERSION }}
         run: |
           echo "Updating package.nix to version $LATEST_VERSION"
 
-          # Update version in package.nix
-          sed -i "s/version = \".*\";/version = \"$LATEST_VERSION\";/" package.nix
+          # Update version string using GNU sed for portability and -E for extended regex
+          # Using @ as delimiter to avoid issues with version numbers
+          sed -i -E "s@(version\s*=\s*\")[^\"]+@\1${LATEST_VERSION}@" package.nix
+          echo "Version updated in package.nix"
 
           # Run nix-prefetch-github and capture all output
-          # REMOVED --token argument as requested
           echo "Running: nix-prefetch-github quantumvoid0 better-control --rev $LATEST_VERSION"
+          # Prefetch without token by default, add --token if hitting rate limits and pass a secret
           PREFETCH_OUTPUT=$(nix-prefetch-github quantumvoid0 better-control --rev "$LATEST_VERSION" 2>&1)
           echo "Prefetch output:"
           echo "$PREFETCH_OUTPUT"
 
-          # Extract hash from output (assuming JSON output)
-          # Check if output is valid JSON first
-          if ! echo "$PREFETCH_OUTPUT" | jq empty; then
-             echo "::error::nix-prefetch-github did not produce valid JSON output."
-             echo "$PREFETCH_OUTPUT"
-             exit 1
+          # Extract hash from output (prefer JSON)
+          NEW_HASH="" # Initialize NEW_HASH
+          # Use jq -e to check for validity and extract in one go if possible
+          if echo "$PREFETCH_OUTPUT" | jq -e .hash > /dev/null 2>&1; then
+             # Use jq -r to get the raw hash string without JSON quotes
+             NEW_HASH=$(echo "$PREFETCH_OUTPUT" | jq -r .hash)
+             echo "Extracted hash via jq: $NEW_HASH"
+          else
+             echo "::warning::nix-prefetch-github did not produce valid JSON output. Attempting legacy extraction."
+             # Attempt to extract legacy format (hash only) using grep with Perl regex
+             LEGACY_HASH=$(echo "$PREFETCH_OUTPUT" | grep -oP 'sha256-[a-zA-Z0-9/+]+=*')
+             if [ -n "$LEGACY_HASH" ]; then
+                # Take the first match if multiple lines somehow exist
+                NEW_HASH=$(echo "$LEGACY_HASH" | head -n 1)
+                echo "Extracted legacy hash via grep: $NEW_HASH"
+             else
+                echo "::error::Failed to extract hash from prefetch output (JSON and Legacy methods failed)."
+                echo "Output was: $PREFETCH_OUTPUT"
+                exit 1
+             fi
           fi
 
-          NEW_HASH=$(echo "$PREFETCH_OUTPUT" | jq -r .hash)
-          echo "Extracted hash: $NEW_HASH"
-
-          # Validate hash format (basic check for non-empty and common nix hash structure)
-          if [ -z "$NEW_HASH" ] || [[ ! "$NEW_HASH" =~ ^sha256- || ! "$NEW_HASH" =~ ^[0-9a-zA-Z/+]+=*$ ]]; then
-            echo "::error::Failed to extract a valid hash from prefetch output. Hash was: '$NEW_HASH'"
-            # Attempt to extract legacy format if JSON failed
-            LEGACY_HASH=$(echo "$PREFETCH_OUTPUT" | grep -o 'sha256.*' | head -n 1)
-            if [ -n "$LEGACY_HASH" ]; then
-               echo "Attempting legacy hash extraction: $LEGACY_HASH"
-               NEW_HASH=$LEGACY_HASH
-            else
-               exit 1
-            fi
+          # --- Improved Hash Validation ---
+          # Validate hash format more strictly (starts with sha256-, followed by Base64 chars and optional padding)
+          if [[ "$NEW_HASH" =~ ^sha256-[A-Za-z0-9+/]+={0,2}$ ]]; then
+              echo "Validated hash format: $NEW_HASH"
+          else
+              echo "::error::Extracted value '$NEW_HASH' does not look like a valid sha256 hash."
+              exit 1
           fi
 
-          # Update hash in package.nix (use pipe as delimiter for sed due to hash potentially containing slashes)
-          sed -i "s|hash = \".*\";|hash = \"$NEW_HASH\";|" package.nix
-          echo "Successfully updated hash in package.nix"
+          # --- Corrected SED command for HASH update ---
+          # Use capture groups to replace only the content *between* the quotes.
+          # Uses GNU sed with -E for extended regex. Delimiter is '|'.
+          # Pattern: \(hash = "\) captures group 1, [^"]* matches hash, \(";\) captures group 2
+          # Replacement: \1 (group 1), ${NEW_HASH} (new hash), \2 (group 2)
+          sed -i -E "s|(hash\s*=\s*\")[^\"]+(\";)|\1${NEW_HASH}\2|" package.nix
 
+          # --- Verification ---
+          # Verify that the hash was actually updated correctly in the file
+          if grep -q "hash = \"$NEW_HASH\";" package.nix; then
+            echo "Successfully updated hash in package.nix"
+          else
+            echo "::error::Failed to verify hash update in package.nix using sed."
+            echo "Expected hash line: hash = \"$NEW_HASH\";"
+            echo "File content after attempted update:"
+            cat package.nix
+            exit 1
+          fi
 
       - name: Commit and push changes
         # Only run if update is needed AND no existing PR was found
         if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == 'false'
         env:
-           LATEST_VERSION: ${{ env.LATEST_VERSION }} # Ensure LATEST_VERSION is available
+           # Pass LATEST_VERSION and define branch name again for clarity
+           LATEST_VERSION: ${{ env.LATEST_VERSION }}
+           BRANCH_NAME: "update-better-control-${{ env.LATEST_VERSION }}"
         run: |
-          BRANCH="update-better-control-$LATEST_VERSION"
-          echo "Committing and pushing changes to branch $BRANCH"
-
+          echo "Configuring Git user..."
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git checkout -B "$BRANCH" # Create or reset the branch
+          echo "Checking out branch $BRANCH_NAME..."
+          # Create or switch to the update branch
+          git checkout -B "$BRANCH_NAME"
+
+          echo "Adding changes..."
           git add package.nix
-          # Check if there are changes to commit
+
+          # Check if there are actual changes staged for commit
           if git diff --staged --quiet; then
-             echo "No changes to commit."
+             echo "No changes detected in package.nix after update. Skipping commit and push."
+             # Set an output or env var if subsequent steps depend on changes being pushed
+             echo "CHANGES_PUSHED=false" >> $GITHUB_ENV
           else
-             git commit -m "Update better-control to $LATEST_VERSION"
-             # Force push is okay here because we've checked for existing PRs
-             # and checkout -B resets the branch locally. This ensures the remote
-             # branch reflects exactly this workflow run's state.
-             git push -f origin "$BRANCH"
-             echo "Changes pushed to $BRANCH"
+             echo "Committing changes..."
+             git commit -m "feat: Update better-control to ${LATEST_VERSION}" -m "Automatic update via GitHub Actions."
+
+             echo "Pushing changes to origin/$BRANCH_NAME..."
+             # Force push is generally acceptable here since we manage this branch
+             # and checked for existing PRs. It ensures the branch reflects this specific run.
+             git push -f origin "$BRANCH_NAME"
+             echo "Changes pushed successfully."
+             echo "CHANGES_PUSHED=true" >> $GITHUB_ENV
           fi
 
       - name: Create Pull Request
-        # Only run if update is needed AND no existing PR was found
-        if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == 'false'
+        # Only run if update is needed, no existing PR was found, AND changes were pushed
+        if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == 'false' && env.CHANGES_PUSHED == 'true'
         uses: actions/github-script@v7
+        env:
+          # Pass necessary versions and branch name to the script context
+          CURRENT_VERSION: ${{ env.CURRENT_VERSION }}
+          LATEST_VERSION: ${{ env.LATEST_VERSION }}
+          BRANCH_NAME: "update-better-control-${{ env.LATEST_VERSION }}"
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }} # Still needed for creating the PR
+          # Grant the script permission to create PRs
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { CURRENT_VERSION, LATEST_VERSION } = process.env;
-            // Double check LATEST_VERSION availability
-            if (!LATEST_VERSION) {
-              console.error('LATEST_VERSION environment variable not set!');
-              process.exit(1);
+            const { CURRENT_VERSION, LATEST_VERSION, BRANCH_NAME } = process.env;
+            // Ensure variables are available
+            if (!LATEST_VERSION || !BRANCH_NAME || !CURRENT_VERSION) {
+              core.setFailed('Required environment variables (CURRENT_VERSION, LATEST_VERSION, BRANCH_NAME) were not set for PR creation.');
+              return;
             }
-            const branchName = `update-better-control-${LATEST_VERSION}`;
-            const title = `Update better-control to ${LATEST_VERSION}`;
-            const body = `This PR automatically updates better-control from version ${CURRENT_VERSION || 'unknown'} to ${LATEST_VERSION}.`;
-            const baseBranch = 'main'; // CHANGE THIS if your default branch is different
 
-            console.log(`Attempting to create PR for branch: ${branchName} against base: ${baseBranch}`);
+            const baseBranch = 'main'; // <<< IMPORTANT: Change this if your default branch is not 'main' >>>
+            const title = `feat: Update better-control to ${LATEST_VERSION}`;
+            const body = `This PR automatically updates the \`better-control\` package from version \`${CURRENT_VERSION}\` to \`${LATEST_VERSION}\`.
+
+            Changes generated by GitHub Actions workflow.`;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            console.log(`Attempting to create Pull Request:`);
+            console.log(`  Title: ${title}`);
+            console.log(`  Head: ${owner}:${BRANCH_NAME}`);
+            console.log(`  Base: ${baseBranch}`);
 
             try {
-              // The check_pr step should prevent this step from running if a PR exists,
-              // but we keep the check here as a safeguard.
-              const { data: pulls } = await github.rest.pulls.list({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                head: `${context.repo.owner}:${branchName}`,
-                base: baseBranch,
+              // The check_pr step should prevent this from running if a PR exists,
+              // but this check adds robustness.
+              const { data: existingPulls } = await github.rest.pulls.list({
+                owner,
+                repo,
                 state: 'open',
+                head: `${owner}:${BRANCH_NAME}`,
+                base: baseBranch,
               });
 
-              if (pulls.length > 0) {
-                console.log(`Open pull request found for branch ${branchName}. Skipping creation (safeguard check).`);
+              if (existingPulls.length > 0) {
+                console.log(`::warning::Pull request from ${BRANCH_NAME} to ${baseBranch} already exists: ${existingPulls[0].html_url}`);
+                console.log('Skipping new PR creation.');
               } else {
-                 console.log(`Creating new pull request: "${title}"`);
-                 const { data: pullRequest } = await github.rest.pulls.create({
-                   owner: context.repo.owner,
-                   repo: context.repo.repo,
-                   head: branchName,
-                   base: baseBranch,
-                   title: title,
-                   body: body,
-                 });
-                 console.log(`Pull request created successfully: ${pullRequest.html_url}`);
+                console.log('No existing open PR found. Creating a new one...');
+                const { data: pullRequest } = await github.rest.pulls.create({
+                  owner,
+                  repo,
+                  title,
+                  head: BRANCH_NAME,
+                  base: baseBranch,
+                  body: body,
+                });
+                console.log(`Pull request created successfully: ${pullRequest.html_url}`);
+                // Optionally add labels or assignees here
+                // await github.rest.issues.addLabels({ owner, repo, issue_number: pullRequest.number, labels: ['dependencies', 'automated'] });
               }
             } catch (error) {
-               console.error(`Failed to create or check for pull request for branch ${branchName}:`, error);
-               // Consider failing the workflow if PR creation fails unexpectedly
-               // core.setFailed(`Failed to create pull request: ${error.message}`);
+               // Check if error is because the branch wasn't pushed (e.g., no changes)
+               if (error.message.includes("No commit found for the ref") || error.message.includes("422")) {
+                  console.warn(`Could not create PR. This might be because the branch '${BRANCH_NAME}' wasn't pushed (no changes detected?) or another issue occurred. Error: ${error.message}`);
+               } else {
+                  core.setFailed(`Failed to create or check for pull request for branch ${BRANCH_NAME}: ${error.message}`);
+               }
             }
