@@ -3,7 +3,7 @@
 [![NixOS](https://img.shields.io/badge/NixOS-supported-blue.svg)](https://nixos.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![flake_check](https://github.com/Rishabh5321/better-control-flake/actions/workflows/flake_check.yml/badge.svg)](https://github.com/Rishabh5321/better-control-flake/actions/workflows/flake_check.yml)
-
+[![Version](https://img.shields.io/badge/endpoint?url=https://raw.githubusercontent.com/rishabh5321/better-control-flake/main/version.json)](https://github.com/rishabh5321/better-control-flake/blob/main/package.nix)
 
 This repository provides a Nix flake for Better-control, A GTK-themed control panel for Linux 🐧
 

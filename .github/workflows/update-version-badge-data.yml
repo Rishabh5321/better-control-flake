@@ -1,0 +1,68 @@
+name: Update Version Badge Data
+
+on:
+  push:
+    branches:
+      - main # Or your default branch name
+    paths:
+      - 'package.nix' # Only run if package.nix changes on main
+
+jobs:
+  update-badge:
+    runs-on: ubuntu-latest
+    # Prevent concurrent runs on the same branch ref
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Need token to push back commit
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Version and Create JSON
+        id: version_data
+        run: |
+          # Extract current version from package.nix
+          CURRENT_VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' package.nix || echo "unknown")
+          echo "Version extracted from package.nix: $CURRENT_VERSION"
+
+          # Define the JSON file path
+          JSON_FILE="version.json"
+
+          # Create JSON content compatible with Shields.io endpoint badge
+          # https://shields.io/endpoint
+          echo "Creating $JSON_FILE..."
+          jq -n \
+            --arg version "$CURRENT_VERSION" \
+            '{schemaVersion: 1, label: "version", message: $version, color: "blue"}' > "$JSON_FILE"
+
+          echo "Generated $JSON_FILE content:"
+          cat "$JSON_FILE"
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT # Pass version to next step if needed
+
+      - name: Commit and push version.json
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if the file exists and has changes
+          if [[ -f version.json ]]; then
+            git add version.json
+            # Check if there are changes staged for commit
+            if git diff --staged --quiet; then
+              echo "No changes detected in version.json. Skipping commit."
+            else
+              echo "Committing updated version.json..."
+              git commit -m "chore: Update version.json to ${{ steps.version_data.outputs.version }}" \
+                         -m "Reflects version from package.nix on main branch."
+              echo "Pushing changes..."
+              git push origin main # Or your default branch name
+              echo "version.json pushed successfully."
+            fi
+          else
+            echo "::error::version.json was not created. Cannot commit."
+            exit 1
+          fi
