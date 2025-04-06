@@ -7,10 +7,14 @@ on:
     paths:
       - 'package.nix' # Only run if package.nix changes on main
 
+# Add permissions for creating PRs and writing content
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   update-badge:
     runs-on: ubuntu-latest
-    # Prevent concurrent runs on the same branch ref
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
@@ -18,51 +22,89 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          # Need token to push back commit
-          token: ${{ secrets.GITHUB_TOKEN }}
+        # No token needed here unless you have complex checkout needs
+
+      - name: Install gh cli and jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh jq # Or use Nix if preferred
 
       - name: Extract Version and Create JSON
         id: version_data
         run: |
-          # Extract current version from package.nix
           CURRENT_VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' package.nix || echo "unknown")
           echo "Version extracted from package.nix: $CURRENT_VERSION"
-
-          # Define the JSON file path
           JSON_FILE="version.json"
-
-          # Create JSON content compatible with Shields.io endpoint badge
-          # https://shields.io/endpoint
           echo "Creating $JSON_FILE..."
           jq -n \
             --arg version "$CURRENT_VERSION" \
             '{schemaVersion: 1, label: "version", message: $version, color: "blue"}' > "$JSON_FILE"
-
           echo "Generated $JSON_FILE content:"
           cat "$JSON_FILE"
-          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT # Pass version to next step if needed
+          # Set outputs for use in later steps
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "branch_name=chore/update-version-json-${CURRENT_VERSION}" >> $GITHUB_OUTPUT
 
-      - name: Commit and push version.json
+      - name: Check for file changes and configure Git
+        id: git_check
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Check if the file exists and has changes
-          if [[ -f version.json ]]; then
-            git add version.json
-            # Check if there are changes staged for commit
-            if git diff --staged --quiet; then
-              echo "No changes detected in version.json. Skipping commit."
-            else
-              echo "Committing updated version.json..."
-              git commit -m "chore: Update version.json to ${{ steps.version_data.outputs.version }}" \
-                         -m "Reflects version from package.nix on main branch."
-              echo "Pushing changes..."
-              git push origin main # Or your default branch name
-              echo "version.json pushed successfully."
-            fi
-          else
-            echo "::error::version.json was not created. Cannot commit."
+          # Check if version.json exists and has actual changes compared to HEAD
+          if [[ ! -f version.json ]]; then
+            echo "::error::version.json was not created."
             exit 1
+          fi
+
+          git add version.json
+
+          if git diff --staged --quiet; then
+            echo "No changes detected in version.json. Skipping PR creation."
+            echo "changes_detected=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected in version.json."
+            echo "changes_detected=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and Push to New Branch
+        # Only run if changes were detected
+        if: steps.git_check.outputs.changes_detected == 'true'
+        env:
+          # Use the branch name generated in the version_data step
+          BRANCH_NAME: ${{ steps.version_data.outputs.branch_name }}
+        run: |
+          echo "Checking out new branch: $BRANCH_NAME"
+          git checkout -B "$BRANCH_NAME"
+          echo "Committing updated version.json..."
+          # Commit message now uses the version from the output
+          git commit -m "chore: Update version.json to ${{ steps.version_data.outputs.version }}" \
+                     -m "Reflects version from package.nix on main branch."
+          echo "Pushing changes to origin/$BRANCH_NAME..."
+          # Need to set upstream branch and force push in case branch exists from previous failed run
+          git push --force --set-upstream origin "$BRANCH_NAME"
+          echo "Branch $BRANCH_NAME pushed successfully."
+
+      - name: Create Pull Request
+        # Only run if changes were detected and pushed
+        if: steps.git_check.outputs.changes_detected == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ steps.version_data.outputs.branch_name }}
+          VERSION: ${{ steps.version_data.outputs.version }}
+        run: |
+          echo "Checking for existing PR for branch $BRANCH_NAME..."
+          EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --base main --state open --json url --jq '.[0].url')
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "::warning::An open pull request already exists for branch $BRANCH_NAME: $EXISTING_PR"
+            echo "Skipping new PR creation."
+          else
+            echo "Creating Pull Request for branch $BRANCH_NAME..."
+            gh pr create \
+              --base main \
+              --head "$BRANCH_NAME" \
+              --title "chore: Update version.json to $VERSION" \
+              --body "This PR updates \`version.json\` to reflect the version change in \`package.nix\` on the main branch. Required for the README version badge. Triggered by workflow."
+            echo "Pull Request created successfully."
           fi
