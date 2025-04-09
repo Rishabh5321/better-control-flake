@@ -14,6 +14,7 @@
 , wrapGAppsHook4
 , gobject-introspection
 , usbguard
+, upower
 }:
 
 python3Packages.buildPythonApplication rec {
@@ -49,6 +50,7 @@ python3Packages.buildPythonApplication rec {
       gammastep
       pulseaudio
       usbguard
+      upower
     ]
     ++ (with python3Packages; [
       pygobject3
