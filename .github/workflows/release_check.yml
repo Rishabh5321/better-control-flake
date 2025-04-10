@@ -57,7 +57,7 @@ jobs:
           # Fetch latest release tag from GitHub API
           echo "Fetching latest release info from GitHub API..."
           # Use gh cli for potentially more robust API interaction
-          LATEST_RELEASE_INFO=$(gh api repos/quantumvoid0/better-control/releases)
+          LATEST_RELEASE_INFO=$(gh api repos/quantumvoid0/better-control/releases/latest)
           if [ -z "$LATEST_RELEASE_INFO" ]; then
              echo "::error::Failed to fetch latest release info from GitHub API."
              exit 1
@@ -72,7 +72,7 @@ jobs:
             exit 1
           else
             # Often tags have 'v' prefix, remove it for comparison if necessary
-            LATEST_VERSION=${LATEST_VERSION#v} # Uncomment if tags are like v1.2.3
+            # LATEST_VERSION=${LATEST_VERSION#v} # Uncomment if tags are like v1.2.3
             echo "Latest version from GitHub API: $LATEST_VERSION"
             echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
 
