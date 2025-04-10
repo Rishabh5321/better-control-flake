@@ -57,7 +57,7 @@ jobs:
           # Fetch latest release tag from GitHub API
           echo "Fetching latest release info from GitHub API..."
           # Use gh cli for potentially more robust API interaction
-          LATEST_RELEASE_INFO=$(gh api repos/quantumvoid0/better-control/releases/latest)
+          LATEST_RELEASE_INFO=$(gh api repos/quantumvoid0/better-control/releases)
           if [ -z "$LATEST_RELEASE_INFO" ]; then
              echo "::error::Failed to fetch latest release info from GitHub API."
              exit 1
