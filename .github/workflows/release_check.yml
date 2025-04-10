@@ -42,50 +42,41 @@ jobs:
           sed --version || true # gnu sed might not have --version
           grep --version || true # gnu grep might not have --version
 
-          - name: Get current and determine latest version
-          id: versions
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            TARGET_REPO: "quantumvoid0/better-control"
-          run: |
-            CURRENT_VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' package.nix || echo "0.0.0")
-            echo "Current version found in package.nix: $CURRENT_VERSION"
-            echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
-  
-            # --- MODIFIED SECTION: Find the latest tag via GitHub API ---
-            echo "Fetching all tags via GitHub API for $TARGET_REPO..."
-            # Use gh api to list tags, jq to extract just the tag names.
-            # Increase per_page if you expect more than 100 tags.
-            # Use 'sort -V' for version sorting (available on standard Linux runners)
-            # Use 'tail -n 1' to get the highest version after sorting.
-            TAG_LIST_JSON=$(gh api "repos/$TARGET_REPO/tags?per_page=100")
-            if [ -z "$TAG_LIST_JSON" ] || [ "$(echo "$TAG_LIST_JSON" | jq 'length')" -eq 0 ]; then
-               echo "::warning::No tags found via GitHub API for repository $TARGET_REPO. Trying releases as fallback."
-               # Fallback: Try listing releases and getting the latest tag name (less ideal)
-               LATEST_VERSION=$(gh release list --repo "$TARGET_REPO" --limit 1 --json tagName --jq '.[0].tagName')
-               if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" == "null" ]; then
-                  echo "::error::Could not find any tags via API or any releases via gh release list for $TARGET_REPO."
-                  exit 1
-               fi
-               echo "Found latest release tag as fallback: $LATEST_VERSION"
-            else
-               echo "Sorting tags fetched via API..."
-               # Extract names, sort using version sort (-V), get the last (highest) one
-               LATEST_VERSION=$(echo "$TAG_LIST_JSON" | jq -r '.[].name' | sort -V | tail -n 1)
-               if [ -z "$LATEST_VERSION" ]; then
-                  echo "::error::Failed to extract or sort latest version from API tag list."
-                  echo "API Response snippet: $(echo "$TAG_LIST_JSON" | head)"
-                  exit 1
-               fi
-               echo "Latest version tag found via API and version sort: $LATEST_VERSION"
-            fi
-            # --- END OF MODIFIED SECTION ---
-  
-            # --- Rest of the step remains the same ---
+      - name: Get current and latest versions
+        id: versions
+        env:
+          # Use GITHUB_TOKEN for potentially higher rate limits with GitHub API
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Extract current version from package.nix using grep with Perl regex
+          # Fallback to 0.0.0 if not found or file doesn't exist
+          CURRENT_VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' package.nix || echo "0.0.0")
+          echo "Current version found in package.nix: $CURRENT_VERSION"
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+
+          # Fetch latest release tag from GitHub API
+          echo "Fetching latest release info from GitHub API..."
+          # Use gh cli for potentially more robust API interaction
+          LATEST_RELEASE_INFO=$(gh api repos/quantumvoid0/better-control/releases/latest)
+          if [ -z "$LATEST_RELEASE_INFO" ]; then
+             echo "::error::Failed to fetch latest release info from GitHub API."
+             exit 1
+          fi
+
+          LATEST_VERSION=$(echo "$LATEST_RELEASE_INFO" | jq -r .tag_name)
+
+          # Validate fetched version
+          if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" == "null" ]; then
+            echo "::error::Could not extract latest version tag from GitHub API response."
+            echo "API Response: $LATEST_RELEASE_INFO"
+            exit 1
+          else
             # Often tags have 'v' prefix, remove it for comparison if necessary
-            # LATEST_VERSION=${LATEST_VERSION#v} # Uncomment if tags are like v1.2.3 and package.nix doesn't use 'v'
+            # LATEST_VERSION=${LATEST_VERSION#v} # Uncomment if tags are like v1.2.3
+            echo "Latest version from GitHub API: $LATEST_VERSION"
             echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
-  
+
+            # Compare versions (simple string comparison, consider using version sort if needed)
             if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
               echo "better-control is up-to-date ($CURRENT_VERSION)."
               echo "UPDATE_NEEDED=false" >> $GITHUB_ENV
@@ -93,6 +84,7 @@ jobs:
               echo "Update needed: $CURRENT_VERSION -> $LATEST_VERSION"
               echo "UPDATE_NEEDED=true" >> $GITHUB_ENV
             fi
+          fi
 
       - name: Check for existing Pull Request
         id: check_pr
@@ -103,12 +95,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Define branch name early using the determined LATEST_VERSION
           BRANCH_NAME: "update-better-control-${{ env.LATEST_VERSION }}"
-          # Define the base branch for the PR
-          BASE_BRANCH: "main" # <<< IMPORTANT: Change this if your default branch is different >>>
         run: |
-          echo "Checking for existing open PR for branch: $BRANCH_NAME targeting $BASE_BRANCH"
-          # Use gh pr list to find open PRs targeting the base branch from the head branch
-          EXISTING_PR_URL=$(gh pr list --head "$BRANCH_NAME" --base "$BASE_BRANCH" --state open --json url --jq '.[0].url')
+          echo "Checking for existing open PR for branch: $BRANCH_NAME"
+          # Use gh pr list to find open PRs targeting the default branch from the head branch
+          # Ensure you replace 'main' if your default branch is different
+          EXISTING_PR_URL=$(gh pr list --head "$BRANCH_NAME" --base main --state open --json url --jq '.[0].url')
 
           if [ -n "$EXISTING_PR_URL" ]; then
             echo "::warning::An open pull request already exists for branch $BRANCH_NAME: $EXISTING_PR_URL"
@@ -125,8 +116,6 @@ jobs:
         env:
            # Pass LATEST_VERSION to this step's environment
            LATEST_VERSION: ${{ env.LATEST_VERSION }}
-           TARGET_REPO_OWNER: "quantumvoid0"
-           TARGET_REPO_NAME: "better-control"
         run: |
           echo "Updating package.nix to version $LATEST_VERSION"
 
@@ -136,9 +125,9 @@ jobs:
           echo "Version updated in package.nix"
 
           # Run nix-prefetch-github and capture all output
-          echo "Running: nix-prefetch-github $TARGET_REPO_OWNER $TARGET_REPO_NAME --rev $LATEST_VERSION"
+          echo "Running: nix-prefetch-github quantumvoid0 better-control --rev $LATEST_VERSION"
           # Prefetch without token by default, add --token if hitting rate limits and pass a secret
-          PREFETCH_OUTPUT=$(nix-prefetch-github "$TARGET_REPO_OWNER" "$TARGET_REPO_NAME" --rev "$LATEST_VERSION" 2>&1)
+          PREFETCH_OUTPUT=$(nix-prefetch-github quantumvoid0 better-control --rev "$LATEST_VERSION" 2>&1)
           echo "Prefetch output:"
           echo "$PREFETCH_OUTPUT"
 
@@ -176,6 +165,8 @@ jobs:
           # --- Corrected SED command for HASH update ---
           # Use capture groups to replace only the content *between* the quotes.
           # Uses GNU sed with -E for extended regex. Delimiter is '|'.
+          # Pattern: \(hash = "\) captures group 1, [^"]* matches hash, \(";\) captures group 2
+          # Replacement: \1 (group 1), ${NEW_HASH} (new hash), \2 (group 2)
           sed -i -E "s|(hash\s*=\s*\")[^\"]+(\";)|\1${NEW_HASH}\2|" package.nix
 
           # --- Verification ---
@@ -235,23 +226,20 @@ jobs:
           CURRENT_VERSION: ${{ env.CURRENT_VERSION }}
           LATEST_VERSION: ${{ env.LATEST_VERSION }}
           BRANCH_NAME: "update-better-control-${{ env.LATEST_VERSION }}"
-          # Define the base branch for the PR again
-          BASE_BRANCH: "main" # <<< IMPORTANT: Change this if your default branch is different >>>
         with:
           # Grant the script permission to create PRs
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { CURRENT_VERSION, LATEST_VERSION, BRANCH_NAME, BASE_BRANCH } = process.env;
+            const { CURRENT_VERSION, LATEST_VERSION, BRANCH_NAME } = process.env;
             // Ensure variables are available
-            if (!LATEST_VERSION || !BRANCH_NAME || !CURRENT_VERSION || !BASE_BRANCH) {
-              core.setFailed('Required environment variables (CURRENT_VERSION, LATEST_VERSION, BRANCH_NAME, BASE_BRANCH) were not set for PR creation.');
+            if (!LATEST_VERSION || !BRANCH_NAME || !CURRENT_VERSION) {
+              core.setFailed('Required environment variables (CURRENT_VERSION, LATEST_VERSION, BRANCH_NAME) were not set for PR creation.');
               return;
             }
 
+            const baseBranch = 'main'; // <<< IMPORTANT: Change this if your default branch is not 'main' >>>
             const title = `feat: Update better-control to ${LATEST_VERSION}`;
             const body = `This PR automatically updates the \`better-control\` package from version \`${CURRENT_VERSION}\` to \`${LATEST_VERSION}\`.
-
-            This version was determined by finding the highest version tag available in the repository.
 
             Changes generated by GitHub Actions workflow.`;
             const owner = context.repo.owner;
@@ -260,7 +248,7 @@ jobs:
             console.log(`Attempting to create Pull Request:`);
             console.log(`  Title: ${title}`);
             console.log(`  Head: ${owner}:${BRANCH_NAME}`);
-            console.log(`  Base: ${BASE_BRANCH}`);
+            console.log(`  Base: ${baseBranch}`);
 
             try {
               // The check_pr step should prevent this from running if a PR exists,
@@ -270,11 +258,11 @@ jobs:
                 repo,
                 state: 'open',
                 head: `${owner}:${BRANCH_NAME}`,
-                base: BASE_BRANCH,
+                base: baseBranch,
               });
 
               if (existingPulls.length > 0) {
-                console.log(`::warning::Pull request from ${BRANCH_NAME} to ${BASE_BRANCH} already exists: ${existingPulls[0].html_url}`);
+                console.log(`::warning::Pull request from ${BRANCH_NAME} to ${baseBranch} already exists: ${existingPulls[0].html_url}`);
                 console.log('Skipping new PR creation.');
               } else {
                 console.log('No existing open PR found. Creating a new one...');
@@ -282,8 +270,8 @@ jobs:
                   owner,
                   repo,
                   title,
-                  head: BRANCH_NAME, // Use just the branch name for head within the same repo
-                  base: BASE_BRANCH,
+                  head: BRANCH_NAME,
+                  base: baseBranch,
                   body: body,
                 });
                 console.log(`Pull request created successfully: ${pullRequest.html_url}`);
@@ -292,8 +280,8 @@ jobs:
               }
             } catch (error) {
                // Check if error is because the branch wasn't pushed (e.g., no changes)
-               if (error.message.includes("No commit found for the ref") || error.status === 422) { // 422 Unprocessable Entity can indicate validation errors like head/base mismatch
-                  console.warn(`Could not create PR. This might be because the branch '${BRANCH_NAME}' wasn't pushed (no changes detected?), the base branch '${BASE_BRANCH}' is incorrect, or another issue occurred. Error: ${error.message}`);
+               if (error.message.includes("No commit found for the ref") || error.message.includes("422")) {
+                  console.warn(`Could not create PR. This might be because the branch '${BRANCH_NAME}' wasn't pushed (no changes detected?) or another issue occurred. Error: ${error.message}`);
                } else {
                   core.setFailed(`Failed to create or check for pull request for branch ${BRANCH_NAME}: ${error.message}`);
                }
