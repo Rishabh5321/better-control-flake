@@ -45,45 +45,38 @@ jobs:
       - name: Get current and latest versions
         id: versions
         env:
-          # Use GITHUB_TOKEN for potentially higher rate limits with GitHub API
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Extract current version from package.nix using grep with Perl regex
-          # Fallback to 0.0.0 if not found or file doesn't exist
           CURRENT_VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' package.nix || echo "0.0.0")
           echo "Current version found in package.nix: $CURRENT_VERSION"
           echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
-
-          # Fetch latest release tag from GitHub API
-          echo "Fetching latest release info from GitHub API..."
-          # Use gh cli for potentially more robust API interaction
-          LATEST_RELEASE_INFO=$(gh api repos/quantumvoid0/better-control/releases/latest)
-          if [ -z "$LATEST_RELEASE_INFO" ]; then
-             echo "::error::Failed to fetch latest release info from GitHub API."
+      
+          echo "Fetching all releases from GitHub API..."
+          RELEASES=$(gh api repos/quantumvoid0/better-control/releases)
+      
+          if [ -z "$RELEASES" ]; then
+             echo "::error::Failed to fetch releases from GitHub API."
              exit 1
           fi
-
-          LATEST_VERSION=$(echo "$LATEST_RELEASE_INFO" | jq -r .tag_name)
-
-          # Validate fetched version
+      
+          # Filter to find the first non-prerelease and non-draft release
+          LATEST_VERSION=$(echo "$RELEASES" | jq -r '[.[] | select(.prerelease == false and .draft == false)][0].tag_name')
+      
           if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" == "null" ]; then
-            echo "::error::Could not extract latest version tag from GitHub API response."
-            echo "API Response: $LATEST_RELEASE_INFO"
+            echo "::error::Could not extract valid release tag from GitHub API response."
+            echo "API Response: $RELEASES"
             exit 1
+          fi
+      
+          echo "Latest version from GitHub API: $LATEST_VERSION"
+          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
+      
+          if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
+            echo "better-control is up-to-date ($CURRENT_VERSION)."
+            echo "UPDATE_NEEDED=false" >> $GITHUB_ENV
           else
-            # Often tags have 'v' prefix, remove it for comparison if necessary
-            # LATEST_VERSION=${LATEST_VERSION#v} # Uncomment if tags are like v1.2.3
-            echo "Latest version from GitHub API: $LATEST_VERSION"
-            echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
-
-            # Compare versions (simple string comparison, consider using version sort if needed)
-            if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
-              echo "better-control is up-to-date ($CURRENT_VERSION)."
-              echo "UPDATE_NEEDED=false" >> $GITHUB_ENV
-            else
-              echo "Update needed: $CURRENT_VERSION -> $LATEST_VERSION"
-              echo "UPDATE_NEEDED=true" >> $GITHUB_ENV
-            fi
+            echo "Update needed: $CURRENT_VERSION -> $LATEST_VERSION"
+            echo "UPDATE_NEEDED=true" >> $GITHUB_ENV
           fi
 
       - name: Check for existing Pull Request
