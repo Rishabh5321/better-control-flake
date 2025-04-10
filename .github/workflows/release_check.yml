@@ -42,38 +42,50 @@ jobs:
           sed --version || true # gnu sed might not have --version
           grep --version || true # gnu grep might not have --version
 
-      - name: Get current and determine latest version
-        id: versions
-        env:
-          # Use GITHUB_TOKEN for potentially higher rate limits with GitHub API
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Define the target repository
-          TARGET_REPO: "quantumvoid0/better-control"
-        run: |
-          # Extract current version from package.nix using grep with Perl regex
-          # Fallback to 0.0.0 if not found or file doesn't exist
-          CURRENT_VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' package.nix || echo "0.0.0")
-          echo "Current version found in package.nix: $CURRENT_VERSION"
-          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
-
-          # --- MODIFIED SECTION: Find the latest tag by version sort ---
-          echo "Fetching all tags and finding the latest version from $TARGET_REPO..."
-          # Use 'gh tag list', sort by version ('version:refname'), descending ('-'), take the first one
-          # This finds the highest version number, including pre-releases if they sort highest
-          LATEST_VERSION=$(gh tag list --repo "$TARGET_REPO" --sort "-version:refname" | head -n 1)
-
-          # Validate fetched version tag
-          if [ -z "$LATEST_VERSION" ]; then
-            echo "::error::Could not find any tags in the repository $TARGET_REPO using 'gh tag list'."
-            exit 1
-          else
+          - name: Get current and determine latest version
+          id: versions
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            TARGET_REPO: "quantumvoid0/better-control"
+          run: |
+            CURRENT_VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' package.nix || echo "0.0.0")
+            echo "Current version found in package.nix: $CURRENT_VERSION"
+            echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+  
+            # --- MODIFIED SECTION: Find the latest tag via GitHub API ---
+            echo "Fetching all tags via GitHub API for $TARGET_REPO..."
+            # Use gh api to list tags, jq to extract just the tag names.
+            # Increase per_page if you expect more than 100 tags.
+            # Use 'sort -V' for version sorting (available on standard Linux runners)
+            # Use 'tail -n 1' to get the highest version after sorting.
+            TAG_LIST_JSON=$(gh api "repos/$TARGET_REPO/tags?per_page=100")
+            if [ -z "$TAG_LIST_JSON" ] || [ "$(echo "$TAG_LIST_JSON" | jq 'length')" -eq 0 ]; then
+               echo "::warning::No tags found via GitHub API for repository $TARGET_REPO. Trying releases as fallback."
+               # Fallback: Try listing releases and getting the latest tag name (less ideal)
+               LATEST_VERSION=$(gh release list --repo "$TARGET_REPO" --limit 1 --json tagName --jq '.[0].tagName')
+               if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" == "null" ]; then
+                  echo "::error::Could not find any tags via API or any releases via gh release list for $TARGET_REPO."
+                  exit 1
+               fi
+               echo "Found latest release tag as fallback: $LATEST_VERSION"
+            else
+               echo "Sorting tags fetched via API..."
+               # Extract names, sort using version sort (-V), get the last (highest) one
+               LATEST_VERSION=$(echo "$TAG_LIST_JSON" | jq -r '.[].name' | sort -V | tail -n 1)
+               if [ -z "$LATEST_VERSION" ]; then
+                  echo "::error::Failed to extract or sort latest version from API tag list."
+                  echo "API Response snippet: $(echo "$TAG_LIST_JSON" | head)"
+                  exit 1
+               fi
+               echo "Latest version tag found via API and version sort: $LATEST_VERSION"
+            fi
+            # --- END OF MODIFIED SECTION ---
+  
+            # --- Rest of the step remains the same ---
             # Often tags have 'v' prefix, remove it for comparison if necessary
             # LATEST_VERSION=${LATEST_VERSION#v} # Uncomment if tags are like v1.2.3 and package.nix doesn't use 'v'
-            echo "Latest version tag found via version sort: $LATEST_VERSION"
             echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
-
-            # Compare versions (simple string comparison, assumes tags are comparable)
-            # Consider using 'sort -V' if complex version comparison needed, but usually not necessary here
+  
             if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
               echo "better-control is up-to-date ($CURRENT_VERSION)."
               echo "UPDATE_NEEDED=false" >> $GITHUB_ENV
@@ -81,8 +93,6 @@ jobs:
               echo "Update needed: $CURRENT_VERSION -> $LATEST_VERSION"
               echo "UPDATE_NEEDED=true" >> $GITHUB_ENV
             fi
-          fi
-          # --- END OF MODIFIED SECTION ---
 
       - name: Check for existing Pull Request
         id: check_pr
