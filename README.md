@@ -6,7 +6,9 @@
 
 NOTE :- Please Enable `services.power-profiles-daemon.enable = true;` if you are having power profile changing issues.
 
-NOTE: Please enable `services.usbguard.enable = true;` if you want USBGuard to work. Additionally, you will need to update your usbguard permissions to use USBGuard. For reference, see my configuration file: [usbguard.nix](.github/assets/usbguard.nix). Change ${username} with your username.
+NOTE:- Please enable `services.usbguard.enable = true;` if you want USBGuard to work. Additionally, you will need to update your usbguard permissions to use USBGuard. For reference, see my configuration file: [usbguard.nix](.github/assets/usbguard.nix). Change ${username} with your username.
+
+NOTE:- Please enable `services.upower.enable = true;` if battery stats are not visible in better-control battery panel.
 
 ## Table of Contents
 1. [Features](#features)
