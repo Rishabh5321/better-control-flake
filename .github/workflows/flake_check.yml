@@ -25,8 +25,7 @@ jobs:
           extra_nix_config: |
             auto-optimise-store = true
             experimental-features = nix-command flakes
-            # Ensure download-buffer-size is an integer, not a float
-            download-buffer-size = 500000000
+            download-buffer-size = 500000000 # Ensure integer
 
       - name: Setup Cachix
         uses: cachix/cachix-action@v16
@@ -35,53 +34,60 @@ jobs:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
       - name: Run flake check and capture logs
-        # Use set +e so the step doesn't fail immediately on non-zero exit code
-        # We will check the exit code manually.
         run: |
-          set +e
+          set +e # Prevent script from exiting immediately on command failure
+
           echo "Running nix flake check..."
-          nix flake check 2>&1 | tee flake_check.log
+          # Run the command, capture output, and get exit code immediately
+          OUTPUT=$(nix flake check 2>&1)
           EXIT_CODE=$?
-          
+
+          # Print the output to step logs and tee to file
+          echo "$OUTPUT"
+          echo "$OUTPUT" > flake_check.log # Use > instead of tee, tee can sometimes mask exit codes in complex pipes
+
           echo "Flake check exited with code: $EXIT_CODE"
           echo "FLAKE_CHECK_EXIT_CODE=$EXIT_CODE" >> $GITHUB_ENV
 
-          # Filter out the specific warning and save to a new file for reporting
-          grep -v "The check omitted these incompatible systems:" flake_check.log > flake_check_filtered.log
-          
-          # Set status based on exit code, not grep
+          # Set status and mark for failure based on exit code
           if [ "$EXIT_CODE" -eq 0 ]; then
             echo "FLAKE_CHECK_STATUS=passed" >> $GITHUB_ENV
           else
             echo "FLAKE_CHECK_STATUS=failed" >> $GITHUB_ENV
-            # Mark workflow to fail if check failed
-            echo "WORKFLOW_SHOULD_FAIL=true" >> $GITHUB_ENV
+            echo "WORKFLOW_SHOULD_FAIL=true" >> $GITHUB_ENV # Ensure this is set on failure
           fi
+
+          # Filter logs for reporting (excluding the specific warning)
+          echo "$OUTPUT" | grep -v "The check omitted these incompatible systems:" > flake_check_filtered.log
 
 
       - name: Run flake install and capture logs
-        # Use set +e so the step doesn't fail immediately on non-zero exit code
-        # We will check the exit code manually.
         run: |
-          set +e
+          set +e # Prevent script from exiting immediately on command failure
+
           echo "Running nix profile install..."
-          nix profile install .#better-control 2>&1 | tee flake_install.log
+          # Run the command, capture output, and get exit code immediately
+          OUTPUT=$(nix profile install .#better-control 2>&1)
           EXIT_CODE=$?
+
+          # Print the output to step logs and tee to file
+          echo "$OUTPUT"
+          echo "$OUTPUT" > flake_install.log # Use > instead of tee
 
           echo "Flake install exited with code: $EXIT_CODE"
           echo "FLAKE_INSTALL_EXIT_CODE=$EXIT_CODE" >> $GITHUB_ENV
 
-          # Filter out the specific warning (less likely here but for consistency)
-          grep -v "The check omitted these incompatible systems:" flake_install.log > flake_install_filtered.log
-
-          # Set status based on exit code, not grep
+          # Set status and mark for failure based on exit code
           if [ "$EXIT_CODE" -eq 0 ]; then
             echo "FLAKE_INSTALL_STATUS=passed" >> $GITHUB_ENV
           else
             echo "FLAKE_INSTALL_STATUS=failed" >> $GITHUB_ENV
-            # Mark workflow to fail if install failed
-            echo "WORKFLOW_SHOULD_FAIL=true" >> $GITHUB_ENV
+            echo "WORKFLOW_SHOULD_FAIL=true" >> $GITHUB_ENV # Ensure this is set on failure
           fi
+
+          # Filter logs for reporting (excluding the specific warning)
+          echo "$OUTPUT" | grep -v "The check omitted these incompatible systems:" > flake_install_filtered.log
+
 
       - name: Debug Filtered Logs
         run: |
@@ -94,7 +100,7 @@ jobs:
 
 
       - name: Send Telegram Notification
-        if: always()
+        if: always() # Runs regardless of previous step success/failure
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
@@ -103,17 +109,18 @@ jobs:
           REPO_NAME="${{ github.repository }}"
 
           # Use the filtered logs for the message content
+          # Use < file or echo "$OUTPUT" for cat
           FLAKE_CHECK_LOG_CONTENT=$(cat flake_check_filtered.log 2>/dev/null | head -n 15 | perl -pe 's/\n/%0A/g')
           FLAKE_INSTALL_LOG_CONTENT=$(cat flake_install_filtered.log 2>/dev/null | head -n 15 | perl -pe 's/\n/%0A/g')
 
           # Add placeholder if logs are empty or file doesn't exist
           FLAKE_CHECK_LOG="${FLAKE_CHECK_LOG_CONTENT:-No relevant log messages.}"
           FLAKE_INSTALL_LOG="${FLAKE_INSTALL_LOG_CONTENT:-No relevant log messages.}"
-          
+
           # Build status message based on environment variables set from exit codes
           CHECK_EMOJI="${{ env.FLAKE_CHECK_STATUS == 'passed' && '✅' || '❌' }}"
           INSTALL_EMOJI="${{ env.FLAKE_INSTALL_STATUS == 'passed' && '✅' || '❌' }}"
-          
+
           # Overall status emoji
           OVERALL_EMOJI="❌"
           if [[ "${{ env.FLAKE_CHECK_STATUS }}" == "passed" && "${{ env.FLAKE_INSTALL_STATUS }}" == "passed" ]]; then
@@ -127,12 +134,10 @@ jobs:
           MESSAGE+="%0A%0AGenerated on $(TZ='Asia/Kolkata' date)"
 
           # Ensure message length does not exceed Telegram limit (approx 4096 bytes)
-          # This basic check truncates if necessary, more robust handling might be needed for very long logs
           MAX_LENGTH=4000
           if [ ${#MESSAGE} -gt $MAX_LENGTH ]; then
              MESSAGE="${MESSAGE:0:$MAX_LENGTH}... (truncated)"
           fi
-
 
           curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" \
             -d "chat_id=$CHAT_ID" \
@@ -140,10 +145,11 @@ jobs:
             -d "parse_mode=HTML"
 
 
-      # This step will fail if any of the flake operations had a non-zero exit code
-      # This is determined by the WORKFLOW_SHOULD_FAIL environment variable.
+      # This step will fail the workflow if WORKFLOW_SHOULD_FAIL was set to true
+      # in any previous step due to a non-zero exit code.
       - name: Fail Workflow If Errors Detected
+        # This condition checks if the variable was set.
         if: env.WORKFLOW_SHOULD_FAIL == 'true'
         run: |
-          echo "One or more Nix commands failed. See previous steps for details."
-          exit 1
+          echo "One or more Nix commands failed (indicated by non-zero exit code). Failing workflow."
+          exit 1 # Explicitly exit with a non-zero status to fail the step and job
