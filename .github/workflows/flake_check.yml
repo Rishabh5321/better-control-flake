@@ -3,18 +3,30 @@ name: check_and_build
 on:
   push:
     branches:
-      - main 
+      - main
   pull_request:
     branches:
       - '*'
-  workflow_dispatch: 
-    
+  workflow_dispatch:
+
 jobs:
   nix_check_build:
     name: Nix Check and Build
     runs-on: ubuntu-latest
 
     steps:
+      - name: Send Telegram Message - Job Started
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🚀 GitHub Actions Workflow Started
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+            Commit SHA: ${{ github.sha }}
+            Event: ${{ github.event_name }}
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -27,12 +39,45 @@ jobs:
       - name: Setup Cachix
         uses: cachix/cachix-action@v16
         with:
-          name: rishabh5321 
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}' 
+          name: rishabh5321
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
       - name: Run flake check
         run: nix flake check
 
+      - name: Send Telegram Message - Flake Check Completed
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ✅ Nix Flake Check Completed
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+
       - name: Run flake build
         run: nix build .#better-control
 
+      - name: Send Telegram Message - Flake Build Completed
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🏗️ Nix Flake Build Completed
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+
+      - name: Send Telegram Message - Job Failed
+        if: failure()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ❌ GitHub Actions Workflow Failed
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+            Commit SHA: ${{ github.sha }}
+            Event: ${{ github.event_name }}
+            Workflow Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
