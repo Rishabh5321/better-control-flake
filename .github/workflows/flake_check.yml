@@ -2,9 +2,11 @@ name: flake_check
 
 on:
   push:
+    branches:
+      - main # Or your default branch, e.g., master
   pull_request:
     branches:
-      - '*'  # Runs on all branches
+      - '*'
   workflow_dispatch:
 
 jobs:
@@ -23,6 +25,7 @@ jobs:
           extra_nix_config: |
             auto-optimise-store = true
             experimental-features = nix-command flakes
+            # Ensure download-buffer-size is an integer, not a float
             download-buffer-size = 500000000
 
       - name: Setup Cachix
@@ -30,39 +33,65 @@ jobs:
         with:
           name: rishabh5321
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-      
+
       - name: Run flake check and capture logs
-        id: flake_check
+        # Use set +e so the step doesn't fail immediately on non-zero exit code
+        # We will check the exit code manually.
         run: |
-          set +e  # Don't exit immediately on error
+          set +e
+          echo "Running nix flake check..."
           nix flake check 2>&1 | tee flake_check.log
-          if grep -E "(error:)" flake_check.log > flake_check_filtered.log; then
-            echo "FLAKE_CHECK_STATUS=failed" >> $GITHUB_ENV
-            echo "WORKFLOW_SHOULD_FAIL=true" >> $GITHUB_ENV
-          else
-            echo "No warnings or errors." > flake_check_filtered.log
+          EXIT_CODE=$?
+          
+          echo "Flake check exited with code: $EXIT_CODE"
+          echo "FLAKE_CHECK_EXIT_CODE=$EXIT_CODE" >> $GITHUB_ENV
+
+          # Filter out the specific warning and save to a new file for reporting
+          grep -v "The check omitted these incompatible systems:" flake_check.log > flake_check_filtered.log
+          
+          # Set status based on exit code, not grep
+          if [ "$EXIT_CODE" -eq 0 ]; then
             echo "FLAKE_CHECK_STATUS=passed" >> $GITHUB_ENV
+          else
+            echo "FLAKE_CHECK_STATUS=failed" >> $GITHUB_ENV
+            # Mark workflow to fail if check failed
+            echo "WORKFLOW_SHOULD_FAIL=true" >> $GITHUB_ENV
           fi
+
 
       - name: Run flake install and capture logs
-        id: flake_install
+        # Use set +e so the step doesn't fail immediately on non-zero exit code
+        # We will check the exit code manually.
         run: |
-          set +e  # Don't exit immediately on error
+          set +e
+          echo "Running nix profile install..."
           nix profile install .#better-control 2>&1 | tee flake_install.log
-          if grep -E "(error:)" flake_install.log > flake_install_filtered.log; then
-            echo "FLAKE_INSTALL_STATUS=failed" >> $GITHUB_ENV
-            echo "WORKFLOW_SHOULD_FAIL=true" >> $GITHUB_ENV
-          else
-            echo "No warnings or errors." > flake_install_filtered.log
+          EXIT_CODE=$?
+
+          echo "Flake install exited with code: $EXIT_CODE"
+          echo "FLAKE_INSTALL_EXIT_CODE=$EXIT_CODE" >> $GITHUB_ENV
+
+          # Filter out the specific warning (less likely here but for consistency)
+          grep -v "The check omitted these incompatible systems:" flake_install.log > flake_install_filtered.log
+
+          # Set status based on exit code, not grep
+          if [ "$EXIT_CODE" -eq 0 ]; then
             echo "FLAKE_INSTALL_STATUS=passed" >> $GITHUB_ENV
+          else
+            echo "FLAKE_INSTALL_STATUS=failed" >> $GITHUB_ENV
+            # Mark workflow to fail if install failed
+            echo "WORKFLOW_SHOULD_FAIL=true" >> $GITHUB_ENV
           fi
 
-      - name: Debug Logs
+      - name: Debug Filtered Logs
         run: |
-          echo "Flake Check Log:"
-          cat flake_check_filtered.log
-          echo "Flake Install Log:"
-          cat flake_install_filtered.log
+          echo "--- Filtered Flake Check Log (excluding incompatible systems warning) ---"
+          cat flake_check_filtered.log || echo "(Log file not found or empty)"
+          echo "-----------------------------------------------------------------------"
+          echo "--- Filtered Flake Install Log (excluding incompatible systems warning) ---"
+          cat flake_install_filtered.log || echo "(Log file not found or empty)"
+          echo "-------------------------------------------------------------------------"
+
 
       - name: Send Telegram Notification
         if: always()
@@ -72,29 +101,49 @@ jobs:
         run: |
           BRANCH_NAME="${{ github.ref_name }}"
           REPO_NAME="${{ github.repository }}"
-          FLAKE_CHECK_LOG=$(cat flake_check_filtered.log | head -15 | perl -pe 's/\n/%0A/g')
-          FLAKE_INSTALL_LOG=$(cat flake_install_filtered.log | head -15 | perl -pe 's/\n/%0A/g')
+
+          # Use the filtered logs for the message content
+          FLAKE_CHECK_LOG_CONTENT=$(cat flake_check_filtered.log 2>/dev/null | head -n 15 | perl -pe 's/\n/%0A/g')
+          FLAKE_INSTALL_LOG_CONTENT=$(cat flake_install_filtered.log 2>/dev/null | head -n 15 | perl -pe 's/\n/%0A/g')
+
+          # Add placeholder if logs are empty or file doesn't exist
+          FLAKE_CHECK_LOG="${FLAKE_CHECK_LOG_CONTENT:-No relevant log messages.}"
+          FLAKE_INSTALL_LOG="${FLAKE_INSTALL_LOG_CONTENT:-No relevant log messages.}"
           
-          # Build status message based on our environment variables
+          # Build status message based on environment variables set from exit codes
+          CHECK_EMOJI="${{ env.FLAKE_CHECK_STATUS == 'passed' && '✅' || '❌' }}"
+          INSTALL_EMOJI="${{ env.FLAKE_INSTALL_STATUS == 'passed' && '✅' || '❌' }}"
+          
+          # Overall status emoji
+          OVERALL_EMOJI="❌"
           if [[ "${{ env.FLAKE_CHECK_STATUS }}" == "passed" && "${{ env.FLAKE_INSTALL_STATUS }}" == "passed" ]]; then
-            MESSAGE="✅ Flake checks for $REPO_NAME completed successfully on branch $BRANCH_NAME."
-          else
-            # Use specific emojis for each check
-            CHECK_EMOJI="${{ env.FLAKE_CHECK_STATUS == 'passed' && '✅' || '❌' }}"
-            INSTALL_EMOJI="${{ env.FLAKE_INSTALL_STATUS == 'passed' && '✅' || '❌' }}"
-            MESSAGE="Flake checks for $REPO_NAME on branch $BRANCH_NAME:%0A$CHECK_EMOJI Flake check: ${{ env.FLAKE_CHECK_STATUS }}%0A$INSTALL_EMOJI Flake install: ${{ env.FLAKE_INSTALL_STATUS }}"
+            OVERALL_EMOJI="✅"
           fi
 
-          MESSAGE+="%0A%0A<b>Flake Check Log:</b>%0A<pre>$FLAKE_CHECK_LOG</pre>"
-          MESSAGE+="%0A%0A<b>Flake Install Log:</b>%0A<pre>$FLAKE_INSTALL_LOG</pre>"
+          MESSAGE="$OVERALL_EMOJI Flake checks for $REPO_NAME on branch $BRANCH_NAME:%0A$CHECK_EMOJI Flake check: ${{ env.FLAKE_CHECK_STATUS }} (Exit Code: ${{ env.FLAKE_CHECK_EXIT_CODE }})%0A$INSTALL_EMOJI Flake install: ${{ env.FLAKE_INSTALL_STATUS }} (Exit Code: ${{ env.FLAKE_INSTALL_EXIT_CODE }})"
+
+          MESSAGE+="%0A%0A<b>Flake Check Log (Filtered):</b>%0A<pre>$FLAKE_CHECK_LOG</pre>"
+          MESSAGE+="%0A%0A<b>Flake Install Log (Filtered):</b>%0A<pre>$FLAKE_INSTALL_LOG</pre>"
           MESSAGE+="%0A%0AGenerated on $(TZ='Asia/Kolkata' date)"
+
+          # Ensure message length does not exceed Telegram limit (approx 4096 bytes)
+          # This basic check truncates if necessary, more robust handling might be needed for very long logs
+          MAX_LENGTH=4000
+          if [ ${#MESSAGE} -gt $MAX_LENGTH ]; then
+             MESSAGE="${MESSAGE:0:$MAX_LENGTH}... (truncated)"
+          fi
+
 
           curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" \
             -d "chat_id=$CHAT_ID" \
             -d "text=$MESSAGE" \
             -d "parse_mode=HTML"
 
-      # This step will fail if any of the flake operations found errors
+
+      # This step will fail if any of the flake operations had a non-zero exit code
+      # This is determined by the WORKFLOW_SHOULD_FAIL environment variable.
       - name: Fail Workflow If Errors Detected
         if: env.WORKFLOW_SHOULD_FAIL == 'true'
-        run: exit 1
+        run: |
+          echo "One or more Nix commands failed. See previous steps for details."
+          exit 1
