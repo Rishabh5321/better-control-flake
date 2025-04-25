@@ -79,5 +79,5 @@ better-control
 This flake is licensed under the MIT License. Better-control itself is licensed under the GPL-3.0 License.
 
 ### Acknowledgments
-- [Better-control] (https://github.com/quantumvoid0/better-control) GTK-themed control panel for Linux 🐧
+- [Better-control](https://github.com/quantumvoid0/better-control) GTK-themed control panel for Linux 🐧
 - The NixOS community for their support and resources.
