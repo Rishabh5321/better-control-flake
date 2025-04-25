@@ -53,7 +53,7 @@ You can install this flake directly in declarative meathod.
 ```nix
 better-control.url = "github:rishabh5321/better-control-flake";
 ```
-2. Import the Better-Control module in your NixOS configuration in home.nix:
+2. Import the Better-Control module in your NixOS configuration where you declare pkgs:
 ```nix
 { inputs, pkgs ... }: {
    environment.systemPackages =
