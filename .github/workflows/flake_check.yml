@@ -15,18 +15,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Send Telegram Message - Job Started
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: |
-            🚀 GitHub Actions Workflow Started
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref }}
-            Commit SHA: ${{ github.sha }}
-            Event: ${{ github.event_name }}
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
