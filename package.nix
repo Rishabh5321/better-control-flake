@@ -19,14 +19,14 @@
 
 python3Packages.buildPythonApplication rec {
   pname = "better-control";
-  version = "v6.11.3";
+  version = "v6.11.4";
   pyproject = false;
 
   src = fetchFromGitHub {
     owner = "quantumvoid0";
     repo = "better-control";
     tag = version;
-    hash = "sha256-44GKLar6/iJ1mv3rYdd4DLjfe94pri6N1u0DQKbddno=";
+    hash = "sha256-i+r0iPeSG2a8P2oDvm7QS+Y1ok117K6gnC7EVJuKgIs=";
   };
 
   nativeBuildInputs = [
