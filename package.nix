@@ -73,9 +73,12 @@ python3Packages.buildPythonApplication rec {
   makeWrapperArgs = [ "\${gappsWrapperArgs[@]}" ];
 
   postInstall = ''
-    rm $out/bin/control
+    rm $out/bin/betterctl
     chmod +x $out/share/better-control/better_control.py
     substituteInPlace $out/bin/better-control \
+      --replace-fail "/bin/bash" "/usr/bin/env bash" \
+      --replace-fail "python3 " ""
+    substituteInPlace $out/bin/control \
       --replace-fail "/bin/bash" "/usr/bin/env bash" \
       --replace-fail "python3 " ""
     substituteInPlace $out/share/applications/better-control.desktop \
