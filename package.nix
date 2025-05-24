@@ -2,99 +2,103 @@
 , python3Packages
 , fetchFromGitHub
 , gtk3
+, bash
 , networkmanager
 , bluez
-, pipewire
 , brightnessctl
 , power-profiles-daemon
 , gammastep
 , libpulseaudio
-, pulseaudio
 , desktop-file-utils
-, wrapGAppsHook4
+, wrapGAppsHook3
 , gobject-introspection
-, usbguard
 , upower
+, nix-update-script
+,
 }:
 
 python3Packages.buildPythonApplication rec {
   pname = "better-control";
-  version = "v6.11.7";
+  version = "17df52b0836b5bca80995377b6cb5834ae635ad4";
   pyproject = false;
 
   src = fetchFromGitHub {
     owner = "quantumvoid0";
     repo = "better-control";
-    tag = version;
-    hash = "sha256-eN0VAxZ43I7a0ljh5r04RksHL+x8Em1eD6a/Gi8kczE=";
+    rev = "${version}";
+    hash = "sha256-yK8R2K5c7FlSgdFug+bg6aLJ+34EE4eINf2Z0f5VwmI=";
   };
+
+  build-system = with python3Packages; [
+    setuptools
+  ];
 
   nativeBuildInputs = [
     desktop-file-utils
-    wrapGAppsHook4
+    wrapGAppsHook3
     gobject-introspection
   ];
 
   buildInputs = [
+    bash
     gtk3
-    libpulseaudio
   ];
 
-  dependencies =
-    [
-      networkmanager
-      bluez
-      pipewire
-      brightnessctl
-      power-profiles-daemon
-      gammastep
-      pulseaudio
-      usbguard
-      upower
-    ]
-    ++ (with python3Packages; [
-      pygobject3
-      dbus-python
-      pydbus
-      psutil
-      qrcode
-      requests
-      setproctitle
-      pillow
-      pycairo
-    ]);
+  # Check src/utils/dependencies.py
+  runtimeDeps = [
+    libpulseaudio
+    networkmanager
+    bluez
+    brightnessctl
+    power-profiles-daemon
+    gammastep
+    upower
+  ];
+
+  dependencies = with python3Packages; [
+    pygobject3
+    dbus-python
+    psutil
+    qrcode
+    requests
+    setproctitle
+    pillow
+    pycairo
+  ];
 
   makeFlags = [ "PREFIX=${placeholder "out"}" ];
 
-  dontWrapPythonPrograms = true;
-
   dontWrapGApps = true;
 
-  makeWrapperArgs = [ "\${gappsWrapperArgs[@]}" ];
+  makeWrapperArgs = [
+    "\${gappsWrapperArgs[@]}"
+    "--prefix PATH : ${lib.makeBinPath runtimeDeps}"
+  ];
 
   postInstall = ''
     rm $out/bin/betterctl
     chmod +x $out/share/better-control/better_control.py
-    substituteInPlace $out/bin/better-control \
-      --replace-fail "/bin/bash" "/usr/bin/env bash" \
-      --replace-fail "python3 " ""
-    substituteInPlace $out/bin/control \
-      --replace-fail "/bin/bash" "/usr/bin/env bash" \
+    substituteInPlace $out/bin/* \
       --replace-fail "python3 " ""
     substituteInPlace $out/share/applications/better-control.desktop \
       --replace-fail "/usr/bin/" ""
   '';
 
+  # Project has no tests
+  doCheck = false;
+
   postFixup = ''
     wrapPythonProgramsIn "$out/share/better-control" "$out $pythonPath"
   '';
 
+  passthru.updateScript = nix-update-script { };
+
   meta = {
-    description = "System control panel utility";
+    description = "Simple control panel for linux based on GTK";
     homepage = "https://github.com/quantumvoid0/better-control";
-    license = lib.licenses.gpl3Plus;
+    license = lib.licenses.gpl3Only;
     maintainers = with lib.maintainers; [ Rishabh5321 ];
-    platforms = [ "x86_64-linux" ];
-    mainProgram = "better-control";
+    platforms = lib.platforms.linux;
+    mainProgram = "control"; # Users use both "control" and "better-control" to launch
   };
 }
