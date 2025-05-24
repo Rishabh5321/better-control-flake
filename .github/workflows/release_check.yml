@@ -74,6 +74,16 @@ jobs:
             echo "UPDATE_NEEDED=true" >> $GITHUB_ENV
           fi
 
+      # NEW STEP: Compute Short SHAs
+      - name: Compute Short SHAs
+        if: env.UPDATE_NEEDED == 'true'
+        env:
+          CURRENT_COMMIT_SHA: ${{ env.CURRENT_COMMIT_SHA }}
+          LATEST_COMMIT_SHA: ${{ env.LATEST_COMMIT_SHA }}
+        run: |
+          echo "CURRENT_COMMIT_SHORT_SHA=${CURRENT_COMMIT_SHA:0:7}" >> $GITHUB_ENV
+          echo "LATEST_COMMIT_SHORT_SHA=${LATEST_COMMIT_SHA:0:7}" >> $GITHUB_ENV
+
       - name: Check for existing Pull Request
         id: check_pr
         # Only run if an update is potentially needed
@@ -161,12 +171,15 @@ jobs:
           CURRENT_COMMIT_SHA: ${{ env.CURRENT_COMMIT_SHA }}
           LATEST_COMMIT_SHA: ${{ env.LATEST_COMMIT_SHA }}
           BRANCH_NAME: "update-better-control-commit-${{ env.LATEST_COMMIT_SHA }}"
+          # Refer to the newly computed short SHAs
+          CURRENT_COMMIT_SHORT_SHA: ${{ env.CURRENT_COMMIT_SHORT_SHA }}
+          LATEST_COMMIT_SHORT_SHA: ${{ env.LATEST_COMMIT_SHORT_SHA }}
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }} # Use your PAT here
           commit-message: "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHA }}"
-          title: "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHA | slice(0, 7) }}" # Changed here
+          title: "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHORT_SHA }}" # Now using pre-computed short SHA
           body: |
-            This PR automatically updates the `better-control` package from commit `${{ env.CURRENT_COMMIT_SHA | slice(0, 7) }}` to `${{ env.LATEST_COMMIT_SHA | slice(0, 7) }}`. # Changed here
+            This PR automatically updates the `better-control` package from commit `${{ env.CURRENT_COMMIT_SHORT_SHA }}` to `${{ env.LATEST_COMMIT_SHORT_SHA }}`. # Now using pre-computed short SHAs
 
             Full commit SHAs:
             - Old: `${{ env.CURRENT_COMMIT_SHA }}`
@@ -178,3 +191,5 @@ jobs:
           branch: ${{ env.BRANCH_NAME }}
           base: main # The target branch for the PR
           delete-branch: true # Delete the branch after PR is merged/closed
+          # committer: "GitHub Actions <actions@github.com>" # Optional: customize committer
+          # author: "GitHub Actions <actions@github.com>" # Optional: customize author
