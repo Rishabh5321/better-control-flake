@@ -48,7 +48,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Get current commit hash (rev) from package.nix
-          CURRENT_COMMIT_SHA=$(grep -oP 'version\s*=\s*"\K[^"]+' package.nix || echo "0000000000000000000000000000000000000000") # Dummy hash if not found
+          # Using `|| true` to prevent the grep from failing the step if 'version' is not found,
+          CURRENT_COMMIT_SHA=$(grep -oP 'version\s*=\s*"\K[^"]+' package.nix || echo "0000000000000000000000000000000000000000")
           echo "Current commit SHA found in package.nix: $CURRENT_COMMIT_SHA"
           echo "CURRENT_COMMIT_SHA=$CURRENT_COMMIT_SHA" >> $GITHUB_ENV
 
@@ -70,6 +71,7 @@ jobs:
           else
             echo "Update needed: $CURRENT_COMMIT_SHA -> $LATEST_COMMIT_SHA"
             echo "UPDATE_NEEDED=true" >> $GITHUB_ENV
+          fi
 
       - name: Check for existing Pull Request
         id: check_pr
