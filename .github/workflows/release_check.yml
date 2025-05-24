@@ -193,7 +193,3 @@ jobs:
           delete-branch: true # Delete the branch after PR is merged/closed
           # committer: "GitHub Actions <actions@github.com>" # Optional: customize committer
           # author: "GitHub Actions <actions@github.com>" # Optional: customize author
-
-      - uses: peter-evans/enable-pull-request-automerge@v3
-        with:
-          token: ${{ secrets.REPO_ACCESS_TOKEN }}
