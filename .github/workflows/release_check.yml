@@ -160,7 +160,7 @@ jobs:
         run: |
           echo "Configuring Git user..."
           git config --global user.email "noreply@github.com"
-          git config --global user.name "github[bot]"
+          git config --global user.name "web-flow"
 
           echo "Checking out branch $BRANCH_NAME..."
           git checkout -B "$BRANCH_NAME"
