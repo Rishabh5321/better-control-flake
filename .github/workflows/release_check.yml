@@ -75,14 +75,17 @@ jobs:
 
       - name: Check for existing Pull Request
         id: check_pr
+        # Only run if an update is potentially needed
         if: env.UPDATE_NEEDED == 'true'
         env:
+          # GITHUB_TOKEN needed for gh cli to interact with the repo
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Use LATEST_COMMIT_SHA for the branch name
+          # Define branch name early using the determined LATEST_COMMIT_SHA
           BRANCH_NAME: "update-better-control-commit-${{ env.LATEST_COMMIT_SHA }}"
         run: |
           echo "Checking for existing open PR for branch: $BRANCH_NAME"
-          # Assuming you want to merge these updates into your 'main' branch
+          # Use gh pr list to find open PRs targeting the default branch from the head branch
+          # Ensure you replace 'main' if your default branch is different
           EXISTING_PR_URL=$(gh pr list --head "$BRANCH_NAME" --base main --state open --json url --jq '.[0].url')
 
           if [ -n "$EXISTING_PR_URL" ]; then
@@ -92,6 +95,7 @@ jobs:
           else
             echo "No existing open PR found for branch $BRANCH_NAME."
             echo "PR_EXISTS=false" >> $GITHUB_ENV
+          fi # <--- This 'fi' must be present and correctly indented
 
       - name: Update commit SHA and hash
         if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == 'false'
