@@ -164,9 +164,9 @@ jobs:
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }} # Use your PAT here
           commit-message: "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHA }}"
-          title: "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHA.substring(0, 7) }}"
+          title: "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHA | slice(0, 7) }}" # Changed here
           body: |
-            This PR automatically updates the `better-control` package from commit `${{ env.CURRENT_COMMIT_SHA.substring(0, 7) }}` to `${{ env.LATEST_COMMIT_SHA.substring(0, 7) }}`.
+            This PR automatically updates the `better-control` package from commit `${{ env.CURRENT_COMMIT_SHA | slice(0, 7) }}` to `${{ env.LATEST_COMMIT_SHA | slice(0, 7) }}`. # Changed here
 
             Full commit SHAs:
             - Old: `${{ env.CURRENT_COMMIT_SHA }}`
