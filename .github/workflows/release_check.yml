@@ -49,6 +49,7 @@ jobs:
         run: |
           # Get current commit hash (rev) from package.nix
           # Using `|| true` to prevent the grep from failing the step if 'version' is not found,
+          # and then default to a dummy hash.
           CURRENT_COMMIT_SHA=$(grep -oP 'version\s*=\s*"\K[^"]+' package.nix || echo "0000000000000000000000000000000000000000")
           echo "Current commit SHA found in package.nix: $CURRENT_COMMIT_SHA"
           echo "CURRENT_COMMIT_SHA=$CURRENT_COMMIT_SHA" >> $GITHUB_ENV
@@ -79,7 +80,7 @@ jobs:
         if: env.UPDATE_NEEDED == 'true'
         env:
           # GITHUB_TOKEN needed for gh cli to interact with the repo
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Use GITHUB_TOKEN for checking PRs
           # Define branch name early using the determined LATEST_COMMIT_SHA
           BRANCH_NAME: "update-better-control-commit-${{ env.LATEST_COMMIT_SHA }}"
         run: |
@@ -95,7 +96,7 @@ jobs:
           else
             echo "No existing open PR found for branch $BRANCH_NAME."
             echo "PR_EXISTS=false" >> $GITHUB_ENV
-          fi # <--- This 'fi' must be present and correctly indented
+          fi
 
       - name: Update commit SHA and hash
         if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == 'false'
@@ -152,99 +153,28 @@ jobs:
             exit 1
           fi
 
-      - name: Commit and push changes
+      # This step replaces the manual git commit and push, and the previous PR creation script
+      - name: Create Pull Request with peter-evans/create-pull-request
         if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == 'false'
-        env:
-          LATEST_COMMIT_SHA: ${{ env.LATEST_COMMIT_SHA }}
-          BRANCH_NAME: "update-better-control-commit-${{ env.LATEST_COMMIT_SHA }}"
-        run: |
-          echo "Configuring Git user..."
-          git config --global user.email "noreply@github.com"
-          git config --global user.name "github[bot]"
-
-          echo "Checking out branch $BRANCH_NAME..."
-          git checkout -B "$BRANCH_NAME"
-
-          echo "Adding changes..."
-          git add package.nix
-
-          if git diff --staged --quiet; then
-             echo "No changes detected in package.nix after update. Skipping commit and push."
-             echo "CHANGES_PUSHED=false" >> $GITHUB_ENV
-          else
-             echo "Committing changes..."
-             git commit -m "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHA }}" -m "Automatic update via GitHub Actions, using latest commit from 'main' branch."
-
-             echo "Pushing changes to origin/$BRANCH_NAME..."
-             # Use the PAT here for authentication
-             git push -f https://x-access-token:${{ secrets.REPO_ACCESS_TOKEN }}@github.com/${{ github.repository }} "$BRANCH_NAME"
-             echo "Changes pushed successfully using PAT."
-             echo "CHANGES_PUSHED=true" >> $GITHUB_ENV
-          fi
-
-      - name: Create Pull Request
-        if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == 'false' && env.CHANGES_PUSHED == 'true'
-        uses: actions/github-script@v7
+        uses: peter-evans/create-pull-request@v6
         env:
           CURRENT_COMMIT_SHA: ${{ env.CURRENT_COMMIT_SHA }}
           LATEST_COMMIT_SHA: ${{ env.LATEST_COMMIT_SHA }}
           BRANCH_NAME: "update-better-control-commit-${{ env.LATEST_COMMIT_SHA }}"
         with:
-          github-token: ${{ secrets.REPO_ACCESS_TOKEN }}
-          script: |
-            const { CURRENT_COMMIT_SHA, LATEST_COMMIT_SHA, BRANCH_NAME } = process.env;
-            if (!LATEST_COMMIT_SHA || !BRANCH_NAME || !CURRENT_COMMIT_SHA) {
-              core.setFailed('Required environment variables (CURRENT_COMMIT_SHA, LATEST_COMMIT_SHA, BRANCH_NAME) were not set for PR creation.');
-              return;
-            }
-
-            const baseBranch = 'main'; // <<< IMPORTANT: This is the branch where you want the PR to be merged into >>>
-            const title = `feat: Update better-control to latest 'main' commit ${LATEST_COMMIT_SHA.substring(0, 7)}`;
-            const body = `This PR automatically updates the \`better-control\` package from commit \`${CURRENT_COMMIT_SHA.substring(0, 7)}\` to \`${LATEST_COMMIT_SHA.substring(0, 7)}\`.
+          token: ${{ secrets.REPO_ACCESS_TOKEN }} # Use your PAT here
+          commit-message: "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHA }}"
+          title: "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHA.substring(0, 7) }}"
+          body: |
+            This PR automatically updates the `better-control` package from commit `${{ env.CURRENT_COMMIT_SHA.substring(0, 7) }}` to `${{ env.LATEST_COMMIT_SHA.substring(0, 7) }}`.
 
             Full commit SHAs:
-            - Old: \`${CURRENT_COMMIT_SHA}\`
-            - New: \`${LATEST_COMMIT_SHA}\`
+            - Old: `${{ env.CURRENT_COMMIT_SHA }}`
+            - New: `${{ env.LATEST_COMMIT_SHA }}`
 
-            This update fetches the latest commit from the \`main\` branch of the \`quantumvoid0/better-control\` repository.
+            This update fetches the latest commit from the `main` branch of the `quantumvoid0/better-control` repository.
 
-            Changes generated by GitHub Actions workflow.`;
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-
-            console.log(`Attempting to create Pull Request:`);
-            console.log(`  Title: ${title}`);
-            console.log(`  Head: ${owner}:${BRANCH_NAME}`);
-            console.log(`  Base: ${baseBranch}`);
-
-            try {
-              const { data: existingPulls } = await github.rest.pulls.list({
-                owner,
-                repo,
-                state: 'open',
-                head: `${owner}:${BRANCH_NAME}`,
-                base: baseBranch,
-              });
-
-              if (existingPulls.length > 0) {
-                console.log(`::warning::Pull request from ${BRANCH_NAME} to ${baseBranch} already exists: ${existingPulls[0].html_url}`);
-                console.log('Skipping new PR creation.');
-              } else {
-                console.log('No existing open PR found. Creating a new one...');
-                const { data: pullRequest } = await github.rest.pulls.create({
-                  owner,
-                  repo,
-                  title,
-                  head: BRANCH_NAME,
-                  base: baseBranch,
-                  body: body,
-                });
-                console.log(`Pull request created successfully: ${pullRequest.html_url}`);
-              }
-            } catch (error) {
-              if (error.message.includes("No commit found for the ref") || error.message.includes("422")) {
-                  console.warn(`Could not create PR. This might be because the branch '${BRANCH_NAME}' wasn't pushed (no changes detected?) or another issue occurred. Error: ${error.message}`);
-              } else {
-                  core.setFailed(`Failed to create or check for pull request for branch ${BRANCH_NAME}: ${error.message}`);
-              }
-            }
+            Changes generated by GitHub Actions workflow.
+          branch: ${{ env.BRANCH_NAME }}
+          base: main # The target branch for the PR
+          delete-branch: true # Delete the branch after PR is merged/closed
