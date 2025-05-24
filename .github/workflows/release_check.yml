@@ -159,8 +159,8 @@ jobs:
           BRANCH_NAME: "update-better-control-commit-${{ env.LATEST_COMMIT_SHA }}"
         run: |
           echo "Configuring Git user..."
-          git config --global user.email "noreply@github.com"
-          git config --global user.name "web-flow"
+          git config --global user.email "gitRunner@git.com"
+          git config --global user.name "Git Runner"
 
           echo "Checking out branch $BRANCH_NAME..."
           git checkout -B "$BRANCH_NAME"
