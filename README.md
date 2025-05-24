@@ -1,5 +1,7 @@
 # Better-Control Flake
 
+## NOTE:- Better-control is available in the nixpkgs repository. This flake will follow commits of the main project and merge them automatically after build checks.
+
 [![NixOS](https://img.shields.io/badge/NixOS-supported-blue.svg)](https://nixos.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![flake_check](https://github.com/Rishabh5321/better-control-flake/actions/workflows/flake_check.yml/badge.svg)](https://github.com/Rishabh5321/better-control-flake/actions/workflows/flake_check.yml)
