@@ -176,7 +176,7 @@ jobs:
              git commit -m "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHA }}" -m "Automatic update via GitHub Actions, using latest commit from 'main' branch."
 
              echo "Pushing changes to origin/$BRANCH_NAME..."
-             git push -f origin "$BRANCH_NAME"
+             git push -f
              echo "Changes pushed successfully."
              echo "CHANGES_PUSHED=true" >> $GITHUB_ENV
           fi
