@@ -176,8 +176,9 @@ jobs:
              git commit -m "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHA }}" -m "Automatic update via GitHub Actions, using latest commit from 'main' branch."
 
              echo "Pushing changes to origin/$BRANCH_NAME..."
-             git push -f origin "$BRANCH_NAME"
-             echo "Changes pushed successfully."
+             # Use the PAT here for authentication
+             git push -f https://x-access-token:${{ secrets.REPO_ACCESS_TOKEN }}@github.com/${{ github.repository }} "$BRANCH_NAME"
+             echo "Changes pushed successfully using PAT."
              echo "CHANGES_PUSHED=true" >> $GITHUB_ENV
           fi
 
@@ -189,7 +190,7 @@ jobs:
           LATEST_COMMIT_SHA: ${{ env.LATEST_COMMIT_SHA }}
           BRANCH_NAME: "update-better-control-commit-${{ env.LATEST_COMMIT_SHA }}"
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.REPO_ACCESS_TOKEN }}
           script: |
             const { CURRENT_COMMIT_SHA, LATEST_COMMIT_SHA, BRANCH_NAME } = process.env;
             if (!LATEST_COMMIT_SHA || !BRANCH_NAME || !CURRENT_COMMIT_SHA) {
