@@ -1,6 +1,10 @@
 # .github/workflows/update-better-control.yml
 name: Update better-control commit version
 
+permissions:
+  contents: write # Needed for `actions/checkout` and commiting changes
+  pull-requests: write # Needed for creating PRs and enabling automerge
+
 on:
   schedule:
     # Runs hourly (adjust as needed, e.g., '0 8 * * *' for daily at 8 AM UTC)
