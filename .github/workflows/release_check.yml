@@ -18,24 +18,27 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          # Fetch all history for accurate version comparison and branch operations
-          fetch-depth: 0
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-        with:
-          # Use nixpkgs-unstable channel for potentially newer tools
-          nix_path: nixpkgs=channel:nixos-unstable
-
-      - name: Install dependencies (using Nix)
+      - name: Setup Environment (Nix & GH CLI)
         run: |
+          # Install Nix using cachix/install-nix-action
+          # This action handles adding Nix to PATH automatically
+          uses: cachix/install-nix-action@v31
+          with:
+            nix_path: nixpkgs=channel:nixos-unstable
+
           # Install necessary tools using nix profile for better isolation
           nix profile install nixpkgs#gh nixpkgs#nix-prefetch-github nixpkgs#jq nixpkgs#gnused nixpkgs#gnugrep
 
-          # Add Nix binaries to PATH for subsequent steps
+          # Add Nix binaries to PATH for subsequent steps (if not already handled by install-nix-action)
+          # It's good practice to ensure this explicitly if you're not sure about the action's behavior.
           echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
-          # Verify installation
+
+          # Authenticate gh CLI with GITHUB_TOKEN
+          # This ensures all subsequent 'gh' commands in this job are authenticated
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
+          # Verify installations
           gh --version
           nix-prefetch-github --version
           jq --version
@@ -44,18 +47,13 @@ jobs:
 
       - name: Get current and latest commit SHAs
         id: versions
-        env:
-          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
         run: |
           # Get current commit hash (rev) from package.nix
-          # Using `|| true` to prevent the grep from failing the step if 'version' is not found,
-          # and then default to a dummy hash.
           CURRENT_COMMIT_SHA=$(grep -oP 'version\s*=\s*"\K[^"]+' package.nix || echo "0000000000000000000000000000000000000000")
           echo "Current commit SHA found in package.nix: $CURRENT_COMMIT_SHA"
           echo "CURRENT_COMMIT_SHA=$CURRENT_COMMIT_SHA" >> $GITHUB_ENV
 
           echo "Fetching latest commit SHA from 'main' branch..."
-          # Fetch the SHA of the latest commit on the 'main' branch
           LATEST_COMMIT_SHA=$(gh api repos/quantumvoid0/better-control/commits/main --jq '.sha')
 
           if [ -z "$LATEST_COMMIT_SHA" ] || [ "$LATEST_COMMIT_SHA" == "null" ]; then
@@ -72,7 +70,6 @@ jobs:
           else
             echo "Update needed: $CURRENT_COMMIT_SHA -> $LATEST_COMMIT_SHA"
             echo "UPDATE_NEEDED=true" >> $GITHUB_ENV
-          fi
 
       - name: Compute Short SHAs
         if: env.UPDATE_NEEDED == 'true'
@@ -87,7 +84,6 @@ jobs:
         id: check_pr
         if: env.UPDATE_NEEDED == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
           BRANCH_NAME: "update-better-control-commit-${{ env.LATEST_COMMIT_SHA }}"
         run: |
           echo "Checking for existing open PR for branch: $BRANCH_NAME"
@@ -100,7 +96,6 @@ jobs:
           else
             echo "No existing open PR found for branch $BRANCH_NAME."
             echo "PR_EXISTS=false" >> $GITHUB_ENV
-          fi
 
       - name: Update commit SHA and hash
         if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == 'false'
@@ -154,7 +149,7 @@ jobs:
           fi
 
       - name: Create Pull Request with peter-evans/create-pull-request
-        id: create_pr # Add an ID to this step to reference its outputs
+        id: create_pr
         if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == 'false'
         uses: peter-evans/create-pull-request@v6
         env:
@@ -182,11 +177,9 @@ jobs:
           delete-branch: true
 
       - name: Set the PR to automerge
-        # This condition ensures automerge is attempted only if a new PR was just created.
-        # It no longer depends on any workflow_dispatch inputs.
         if: ${{ steps.create_pr.outputs.pull-request-operation == 'created' }}
         uses: peter-evans/enable-pull-request-automerge@v3
         with:
-          token: ${{ secrets.REPO_ACCESS_TOKEN }} # Use your PAT secret directly
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
           pull-request-number: ${{ steps.create_pr.outputs.pull-request-number }}
-          merge-method: "squash" # Default to 'merge', you can change to 'squash' or 'rebase'
+          merge-method: "squash"
