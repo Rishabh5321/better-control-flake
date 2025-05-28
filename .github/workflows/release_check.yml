@@ -160,7 +160,7 @@ jobs:
       - name: Create Pull Request with peter-evans/create-pull-request
         id: create_pr
         if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == 'false'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         env:
           CURRENT_COMMIT_SHA: ${{ env.CURRENT_COMMIT_SHA }}
           LATEST_COMMIT_SHA: ${{ env.LATEST_COMMIT_SHA }}
