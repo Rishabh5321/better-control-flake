@@ -18,20 +18,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Fetch all history for accurate version comparison and branch operations
+          fetch-depth: 0 # Keep this for accurate version comparison
 
-      - name: Setup Environment (Nix & GH CLI)
+      # Corrected Setup Environment (Nix & GH CLI) step
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Install dependencies (using Nix) and Authenticate GH CLI
         run: |
-          # Install Nix using cachix/install-nix-action
-          # This action handles adding Nix to PATH automatically
-          uses: cachix/install-nix-action@v31
-          with:
-            nix_path: nixpkgs=channel:nixos-unstable
-
           # Install necessary tools using nix profile for better isolation
           nix profile install nixpkgs#gh nixpkgs#nix-prefetch-github nixpkgs#jq nixpkgs#gnused nixpkgs#gnugrep
 
           # Add Nix binaries to PATH for subsequent steps (if not already handled by install-nix-action)
-          # It's good practice to ensure this explicitly if you're not sure about the action's behavior.
+          # The install-nix-action typically handles this, but it doesn't hurt to be explicit.
           echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
 
           # Authenticate gh CLI with GITHUB_TOKEN
