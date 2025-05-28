@@ -189,4 +189,4 @@ jobs:
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }} # Use your PAT secret directly
           pull-request-number: ${{ steps.create_pr.outputs.pull-request-number }}
-          merge-method: "merge" # Default to 'merge', you can change to 'squash' or 'rebase'
+          merge-method: "squash" # Default to 'merge', you can change to 'squash' or 'rebase'
