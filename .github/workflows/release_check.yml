@@ -45,7 +45,7 @@ jobs:
       - name: Get current and latest commit SHAs
         id: versions
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
         run: |
           # Get current commit hash (rev) from package.nix
           # Using `|| true` to prevent the grep from failing the step if 'version' is not found,
@@ -87,7 +87,7 @@ jobs:
         id: check_pr
         if: env.UPDATE_NEEDED == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
           BRANCH_NAME: "update-better-control-commit-${{ env.LATEST_COMMIT_SHA }}"
         run: |
           echo "Checking for existing open PR for branch: $BRANCH_NAME"
