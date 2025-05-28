@@ -73,6 +73,7 @@ jobs:
           else
             echo "Update needed: $CURRENT_COMMIT_SHA -> $LATEST_COMMIT_SHA"
             echo "UPDATE_NEEDED=true" >> $GITHUB_ENV
+          fi
 
       - name: Compute Short SHAs
         if: env.UPDATE_NEEDED == 'true'
@@ -99,6 +100,7 @@ jobs:
           else
             echo "No existing open PR found for branch $BRANCH_NAME."
             echo "PR_EXISTS=false" >> $GITHUB_ENV
+          fi
 
       - name: Update commit SHA and hash
         if: env.UPDATE_NEEDED == 'true' && env.PR_EXISTS == 'false'
