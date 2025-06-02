@@ -160,11 +160,12 @@ jobs:
       # Generate a GitHub App token for creating the PR
       - name: Generate App Token
         id: generate_token
-        uses: peter-murray/workflow-application-token-action@v4
+        uses: peter-murray/workflow-application-token-action@v2
         with:
           application_id: ${{ secrets.APP_ID }}
           application_private_key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      # Configure Git for FlakeBuilderApp
       - name: Configure Git for FlakeBuilderApp
         run: |
           git config --global user.email "flakebuilderapp[bot]@users.noreply.github.com"
@@ -182,9 +183,10 @@ jobs:
           CURRENT_COMMIT_SHORT_SHA: ${{ env.CURRENT_COMMIT_SHORT_SHA }}
           LATEST_COMMIT_SHORT_SHA: ${{ env.LATEST_COMMIT_SHORT_SHA }}
         with:
-          pull-request-token: ${{ steps.generate_token.outputs.token }}
-          github-token: ${{ steps.generate_token.outputs.token }}
-          pull-request-author: "flakebuilderapp[bot] <flakebuilderapp[bot]@users.noreply.github.com>"
+          token: ${{ steps.generate_token.outputs.token }}
+          author: "flakebuilderapp[bot] <flakebuilderapp[bot]@users.noreply.github.com>"
+          committer: "flakebuilderapp[bot] <flakebuilderapp[bot]@users.noreply.github.com>"
+          labels: automated, better-control
           delete-branch: true
           commit-message: "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHA }}"
           title: "feat: Update better-control to latest 'main' commit ${{ env.LATEST_COMMIT_SHORT_SHA }}"
