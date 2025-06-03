@@ -19,14 +19,14 @@
 
 python3Packages.buildPythonApplication rec {
   pname = "better-control";
-  version = "8162ca14bcf985ba74e8da2f1bb8e88c98d6b0bb";
+  version = "de1b125dc777006d55d8784159efe7562ce6198a";
   pyproject = false;
 
   src = fetchFromGitHub {
-    owner = "quantumvoid0";
+    owner = "better-ecosystem";
     repo = "better-control";
     rev = "${version}";
-    hash = "sha256-7k48fC/XyFo+y9IWLKL4puf27+ZAOPbLurORt46aTyQ=";
+    hash = "sha256-4LO7KTKkRBR9ZPy9/O7Q1VUWavNFFY/ZqDCKtc4brzw=";
   };
 
   build-system = with python3Packages; [
@@ -95,7 +95,7 @@ python3Packages.buildPythonApplication rec {
 
   meta = {
     description = "Simple control panel for linux based on GTK";
-    homepage = "https://github.com/quantumvoid0/better-control";
+    homepage = "https://github.com/better-ecosystem/better-control";
     license = lib.licenses.gpl3Only;
     maintainers = with lib.maintainers; [ Rishabh5321 ];
     platforms = lib.platforms.linux;
