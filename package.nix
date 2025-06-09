@@ -1,20 +1,20 @@
-{ lib
-, python3Packages
-, fetchFromGitHub
-, gtk3
-, bash
-, networkmanager
-, bluez
-, brightnessctl
-, power-profiles-daemon
-, gammastep
-, libpulseaudio
-, desktop-file-utils
-, wrapGAppsHook3
-, gobject-introspection
-, upower
-, nix-update-script
-,
+{
+  lib,
+  python3Packages,
+  fetchFromGitHub,
+  gtk3,
+  bash,
+  networkmanager,
+  bluez,
+  brightnessctl,
+  power-profiles-daemon,
+  gammastep,
+  pulseaudio,
+  desktop-file-utils,
+  wrapGAppsHook3,
+  gobject-introspection,
+  upower,
+  nix-update-script,
 }:
 
 python3Packages.buildPythonApplication rec {
@@ -25,7 +25,7 @@ python3Packages.buildPythonApplication rec {
   src = fetchFromGitHub {
     owner = "better-ecosystem";
     repo = "better-control";
-    rev = "${version}";
+    tag = "v${version}";
     hash = "sha256-axvPoNkmp6RLMB3BGRPUWPzxAcbgEzXf7ELvfz++yhk=";
   };
 
@@ -46,7 +46,7 @@ python3Packages.buildPythonApplication rec {
 
   # Check src/utils/dependencies.py
   runtimeDeps = [
-    libpulseaudio
+    pulseaudio
     networkmanager
     bluez
     brightnessctl
