@@ -25,7 +25,7 @@ python3Packages.buildPythonApplication rec {
   src = fetchFromGitHub {
     owner = "better-ecosystem";
     repo = "better-control";
-    tag = "v${version}";
+    rev = "v${version}";
     hash = "sha256-CGgzBSLo5mFObFJ48a+66VhEHu8W5OtmZzNJXuCnP6A=";
   };
 
