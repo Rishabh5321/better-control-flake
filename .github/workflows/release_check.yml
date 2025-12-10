@@ -25,6 +25,7 @@ jobs:
         with:
           # Fetch all history for accurate version comparison and branch operations
           fetch-depth: 0 # Keep this for accurate version comparison
+          persist-credentials: false
 
       # Corrected Setup Environment (Nix & GH CLI) step
       - name: Setup Nix
